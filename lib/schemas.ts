@@ -98,7 +98,26 @@ export const CreateTripSchema = z
 
 export type CreateTripInput = z.infer<typeof CreateTripSchema>;
 
-export const UpdateTripSchema = CreateTripSchema.partial();
+// UpdateTripSchema must be defined independently — Zod v4 forbids .partial()
+// on schemas that contain .refine() calls.
+export const UpdateTripSchema = z.object({
+  destination: z
+    .string()
+    .min(2, "Zielort muss mindestens 2 Zeichen haben")
+    .max(200, "Zielort zu lang")
+    .transform((v) => v.trim())
+    .optional(),
+  start_time: z.string().datetime({ message: "Ungültiges Startdatum" }).optional(),
+  end_time: z.string().datetime({ message: "Ungültiges Enddatum" }).optional(),
+  distance_km: z
+    .number({ error: "Kilometer muss eine Zahl sein" })
+    .int()
+    .min(0)
+    .max(5000)
+    .optional(),
+  meals_provided: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  notes: z.string().max(1000).optional(),
+});
 export type UpdateTripInput = z.infer<typeof UpdateTripSchema>;
 
 /** Full trip row as returned from the DB (with all calculated fields). */
