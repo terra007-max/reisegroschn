@@ -28,9 +28,15 @@ export default function SignupPage() {
     const fullName = form.get("full_name") as string;
     const email = form.get("email") as string;
     const password = form.get("password") as string;
+    const inviteCode = form.get("invite_code") as string;
 
     startTransition(async () => {
       setError(null);
+
+      if (inviteCode.trim().toUpperCase() !== "BREF26") {
+        setError("Ungültiger Einladungscode.");
+        return;
+      }
       const supabase = createClient();
       const { error } = await supabase.auth.signUp({
         email,
@@ -94,11 +100,22 @@ export default function SignupPage() {
           <CardHeader className="pb-4">
             <CardTitle>Registrieren</CardTitle>
             <CardDescription>
-              Erstellen Sie Ihr Mitarbeiterkonto
+              Einladungscode erforderlich
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="invite_code">Einladungscode</Label>
+                <Input
+                  id="invite_code"
+                  name="invite_code"
+                  type="text"
+                  required
+                  placeholder="XXXXXX"
+                  autoCapitalize="characters"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="full_name">Vollständiger Name</Label>
                 <Input
