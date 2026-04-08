@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, Plane } from "lucide-react";
+import { Plane } from "lucide-react";
+import GroschenCoin from "@/components/GroschenCoin";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -91,9 +92,9 @@ export default function LoginPage() {
               )}
               <Button type="submit" className="w-full" disabled={isPending}>
                 {isPending && (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <GroschenCoin size={20} className="mr-2 shrink-0" />
                 )}
-                Anmelden
+                {isPending ? "Anmelden…" : "Anmelden"}
               </Button>
             </form>
           </CardContent>
