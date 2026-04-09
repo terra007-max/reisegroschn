@@ -253,7 +253,7 @@ export async function createTrip(
       };
     }
 
-    const calcs = await runCalculations(userId, input);
+    const { newYtdMileageKm, ...calcs } = await runCalculations(userId, input);
 
     const { data: trip, error } = await supabase
       .from("trips")
@@ -282,7 +282,7 @@ export async function createTrip(
     // Update YTD mileage on the profile
     await supabase
       .from("profiles")
-      .update({ ytd_mileage_km: calcs.newYtdMileageKm })
+      .update({ ytd_mileage_km: newYtdMileageKm })
       .eq("id", userId);
 
     revalidatePath("/trips");
@@ -353,7 +353,7 @@ export async function updateTrip(
       notes: parsed.data.notes ?? existing.notes ?? undefined,
     };
 
-    const calcs = await runCalculations(userId, merged, tripId);
+    const { newYtdMileageKm, ...calcs } = await runCalculations(userId, merged, tripId);
 
     const { data: trip, error } = await supabase
       .from("trips")
@@ -375,7 +375,7 @@ export async function updateTrip(
     // Adjust YTD mileage (old was subtracted in runCalculations, new is added)
     await supabase
       .from("profiles")
-      .update({ ytd_mileage_km: calcs.newYtdMileageKm })
+      .update({ ytd_mileage_km: newYtdMileageKm })
       .eq("id", userId);
 
     revalidatePath("/trips");
