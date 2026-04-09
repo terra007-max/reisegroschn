@@ -121,17 +121,7 @@ async function runCalculations(
     .single();
 
   if (!profile) {
-    const { data: authUser } = await supabase.auth.getUser();
-    const email = authUser.user?.email ?? "";
-    const fullName = authUser.user?.user_metadata?.full_name ?? email;
-    await supabase.from("profiles").upsert({
-      id: userId,
-      full_name: fullName,
-      email,
-      role: "USER",
-      kv_daily_rate: 30,
-      ytd_mileage_km: 0,
-    });
+    // Profile missing — use statutory defaults in-memory (no DB write to avoid RLS recursion)
     profile = { kv_daily_rate: 30, ytd_mileage_km: 0 };
   }
 
@@ -608,17 +598,6 @@ export async function previewTrip(rawInput: unknown): Promise<
       .single();
 
     if (!profile) {
-      const { data: authUser } = await supabase.auth.getUser();
-      const email = authUser.user?.email ?? "";
-      const fullName = authUser.user?.user_metadata?.full_name ?? email;
-      await supabase.from("profiles").upsert({
-        id: userId,
-        full_name: fullName,
-        email,
-        role: "USER",
-        kv_daily_rate: 30,
-        ytd_mileage_km: 0,
-      });
       profile = { kv_daily_rate: 30, ytd_mileage_km: 0 };
     }
 
