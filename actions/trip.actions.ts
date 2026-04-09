@@ -110,15 +110,27 @@ async function runCalculations(
 ) {
   const supabase = await createClient();
 
-  // Fetch profile for KV rate + YTD mileage
-  const { data: profile, error: profileError } = await supabase
+  // Fetch profile for KV rate + YTD mileage.
+  // If the row is missing (e.g. signup trigger failed), create it with safe defaults.
+  let { data: profile } = await supabase
     .from("profiles")
     .select("kv_daily_rate, ytd_mileage_km")
     .eq("id", userId)
     .single();
 
-  if (profileError || !profile) {
-    throw new Error("Profil nicht gefunden.");
+  if (!profile) {
+    const { data: authUser } = await supabase.auth.getUser();
+    const email = authUser.user?.email ?? "";
+    const fullName = authUser.user?.user_metadata?.full_name ?? email;
+    await supabase.from("profiles").upsert({
+      id: userId,
+      full_name: fullName,
+      email,
+      role: "USER",
+      kv_daily_rate: 30,
+      ytd_mileage_km: 0,
+    });
+    profile = { kv_daily_rate: 30, ytd_mileage_km: 0 };
   }
 
   // If updating an existing trip, we need to subtract its distance from YTD
@@ -555,14 +567,25 @@ export async function previewTrip(rawInput: unknown): Promise<
     const input = parsed.data;
     const supabase = await createClient();
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from("profiles")
       .select("kv_daily_rate, ytd_mileage_km")
       .eq("id", userId)
       .single();
 
     if (!profile) {
-      return { success: false, error: "Profil nicht gefunden." };
+      const { data: authUser } = await supabase.auth.getUser();
+      const email = authUser.user?.email ?? "";
+      const fullName = authUser.user?.user_metadata?.full_name ?? email;
+      await supabase.from("profiles").upsert({
+        id: userId,
+        full_name: fullName,
+        email,
+        role: "USER",
+        kv_daily_rate: 30,
+        ytd_mileage_km: 0,
+      });
+      profile = { kv_daily_rate: 30, ytd_mileage_km: 0 };
     }
 
     const startTime = new Date(input.start_time);
