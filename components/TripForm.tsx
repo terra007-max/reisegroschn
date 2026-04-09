@@ -101,12 +101,58 @@ function PreviewPanel({
 
   if (!preview) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
-          <Calculator className="w-5 h-5 opacity-40" />
-          <span className="text-sm text-center leading-relaxed">
-            Gültige Daten eingeben für Echtzeit-Vorschau
-          </span>
+      <Card className="card-shadow">
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center gap-1.5">
+            <Calculator className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">Gesetzliche Sätze 2024</span>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Taggeld (§26 Z 4 EStG)
+            </p>
+            <div className="space-y-1.5">
+              {[
+                { label: "Unter 3 Stunden", value: "€ 0,00" },
+                { label: "3 – 12 Stunden", value: "€ 13,20" },
+                { label: "Über 12 Stunden", value: "€ 26,40" },
+              ].map((row) => (
+                <div key={row.label} className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{row.label}</span>
+                  <span className="tabular-nums font-medium">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Kilometergeld (§26 Z 4b EStG)
+            </p>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5" />
+                bis 30.000 km/Jahr
+              </span>
+              <span className="tabular-nums font-medium">€ 0,50 / km</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <Car className="w-3.5 h-3.5" />
+                ab 30.000 km/Jahr
+              </span>
+              <span className="tabular-nums font-medium text-muted-foreground">€ 0,00 / km</span>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-muted-foreground bg-muted/60 rounded-lg px-3 py-2 leading-relaxed">
+            Zielort und Zeiten eingeben für Ihre persönliche Berechnung.
+          </div>
         </CardContent>
       </Card>
     );
