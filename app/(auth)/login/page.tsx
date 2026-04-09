@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Plane } from "lucide-react";
-import GroschenCoin from "@/components/GroschenCoin";
+import { CheckCircle2, Loader2, Plane } from "lucide-react";
 
 const features = [
   "§ 26 EStG konforme Taggeld-Berechnung",
@@ -89,12 +88,8 @@ export default function LoginPage() {
           </ul>
         </div>
 
-        {/* Coin decoration */}
-        <div className="relative flex items-center gap-3 mt-8">
-          <GroschenCoin size={36} />
-          <p className="text-white/50 text-xs">
-            §26 EStG · BAO §131 · BGBL 2024
-          </p>
+        <div className="relative mt-8">
+          <p className="text-white/40 text-xs">§26 EStG · BAO §131 · BGBL 2024</p>
         </div>
       </div>
 
@@ -152,7 +147,7 @@ export default function LoginPage() {
             <Button type="submit" className="w-full h-10 font-medium" disabled={isPending}>
               {isPending ? (
                 <>
-                  <GroschenCoin size={18} className="mr-2 shrink-0" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Anmelden…
                 </>
               ) : (

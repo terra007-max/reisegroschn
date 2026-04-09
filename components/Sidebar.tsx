@@ -15,7 +15,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import GroschenCoin from "@/components/GroschenCoin";
 
 const navItems = [
   { href: "/dashboard", label: "Übersicht", icon: LayoutDashboard },
@@ -153,7 +152,6 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
               {isAdmin ? "Administrator" : "Mitarbeiter"}
             </p>
           </div>
-          <GroschenCoin size={20} />
         </div>
         <Button
           variant="ghost"
