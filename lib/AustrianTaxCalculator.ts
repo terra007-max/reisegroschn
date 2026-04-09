@@ -1,13 +1,14 @@
 /**
  * AustrianTaxCalculator.ts
  *
- * Strictly implements Austrian travel expense (Reisekosten) law for 2025/2026.
- * Sources: §26 Z 4 EStG (Taggeld), §26 Z 4d EStG (Kilometergeld), BAO §131.
+ * Implements Austrian travel expense (Reisekosten) law for 2025/2026.
+ * Sources: §26 Z 4 EStG (Taggeld + Nächtigungsgeld), §26 Z 4b EStG
+ * (Kilometergeld), §3 Abs 1 Z 16b EStG (Auslandsreisen), BAO §131.
  *
  * This module is pure (no side effects) and fully unit-testable.
  */
 
-// ─── Statutory Constants ───────────────────────────────────────────────────────
+// ─── Domestic Constants ────────────────────────────────────────────────────────
 
 /** Statutory daily Taggeld rate per §26 Z 4 EStG (Inland) */
 export const TAGGELD_DAILY_RATE_EUR = 30.0;
@@ -27,51 +28,196 @@ export const MILEAGE_RATE_CAR_EUR_PER_KM = 0.5;
 /** Annual mileage cap for tax-free Kilometergeld */
 export const MILEAGE_ANNUAL_CAP_KM = 30_000;
 
+/** Nächtigungsgeld flat-rate per §26 Z 4 EStG — no receipts needed */
+export const NAECHTIGUNGSGELD_RATE_EUR = 17.0;
+
 /** Consecutive-day threshold before a destination becomes a secondary workplace */
 export const DESTINATION_CONSECUTIVE_DAY_LIMIT = 5;
 
 /** Annual-day threshold before a destination becomes a secondary workplace */
 export const DESTINATION_ANNUAL_DAY_LIMIT = 15;
 
+// ─── International Per Diem Rates (BMF Erlass 2024/2025) ──────────────────────
+// Source: BMF-010222/0055-IV/4/2023 and annual BMF updates.
+// Rates are the statutory 24h tax-free maximum in EUR.
+
+export const INTERNATIONAL_PER_DIEM_RATES: Record<string, { name: string; rate24h: number }> = {
+  DE: { name: "Deutschland",      rate24h: 30 },
+  CH: { name: "Schweiz",          rate24h: 75 },
+  IT: { name: "Italien",          rate24h: 35 },
+  FR: { name: "Frankreich",       rate24h: 45 },
+  GB: { name: "Großbritannien",   rate24h: 55 },
+  US: { name: "USA",              rate24h: 58 },
+  ES: { name: "Spanien",          rate24h: 35 },
+  NL: { name: "Niederlande",      rate24h: 40 },
+  BE: { name: "Belgien",          rate24h: 37 },
+  PL: { name: "Polen",            rate24h: 20 },
+  CZ: { name: "Tschechien",       rate24h: 25 },
+  HU: { name: "Ungarn",           rate24h: 20 },
+  SK: { name: "Slowakei",         rate24h: 20 },
+  SI: { name: "Slowenien",        rate24h: 26 },
+  HR: { name: "Kroatien",         rate24h: 26 },
+  SE: { name: "Schweden",         rate24h: 46 },
+  NO: { name: "Norwegen",         rate24h: 55 },
+  DK: { name: "Dänemark",         rate24h: 51 },
+  FI: { name: "Finnland",         rate24h: 46 },
+  PT: { name: "Portugal",         rate24h: 35 },
+  GR: { name: "Griechenland",     rate24h: 32 },
+  RO: { name: "Rumänien",         rate24h: 20 },
+  BG: { name: "Bulgarien",        rate24h: 20 },
+  TR: { name: "Türkei",           rate24h: 30 },
+  JP: { name: "Japan",            rate24h: 60 },
+  CN: { name: "China",            rate24h: 47 },
+  AU: { name: "Australien",       rate24h: 55 },
+  CA: { name: "Kanada",           rate24h: 50 },
+  AE: { name: "Vereinigte Arab.", rate24h: 55 },
+  SG: { name: "Singapur",         rate24h: 60 },
+};
+
+/** Fallback rate for countries not in the table */
+export const INTERNATIONAL_FALLBACK_RATE_EUR = 37.5;
+
 // ─── Shared Types ──────────────────────────────────────────────────────────────
 
 export type VatRate = 0 | 10 | 13 | 20;
 
-// ─── Taggeld ──────────────────────────────────────────────────────────────────
+// ─── Nächtigungsgeld ──────────────────────────────────────────────────────────
 
-export interface TaggeldInput {
-  /** Total trip duration in decimal hours (e.g. 3.5 = 3h 30min) */
-  durationInHours: number;
-  /** Number of employer-provided meals during the trip (0, 1, or 2+) */
-  mealsProvided: 0 | 1 | 2;
-  /**
-   * Kollektivvertrag daily rate. Defaults to statutory €30.
-   * If higher, the excess is returned as taxableAmount.
-   */
-  kvDailyRate?: number;
+export interface NaechtigungsgeldInput {
+  /** Number of overnight stays during the trip */
+  overnightStays: number;
 }
 
-export interface TaggeldResult {
-  /** Statutory Taggeld before meal deductions (aliquot, capped at €30) */
-  grossStatutory: number;
-  /** Net Taggeld after meal deductions, floored at €0 */
-  net: number;
-  /** Tax-free portion (≤ statutory net, max €30/day) */
+export interface NaechtigungsgeldResult {
+  /** Tax-free Nächtigungsgeld in EUR (§26 Z 4 EStG) */
   taxFreeAmount: number;
-  /** Taxable KV excess above the statutory €30 cap (proportional to hours) */
-  taxableAmount: number;
-  /** The total meal deduction applied */
+  /** Number of nights that qualified */
+  qualifyingNights: number;
+}
+
+/**
+ * Calculates the statutory Nächtigungsgeld (overnight allowance).
+ * €17/night, flat-rate, no receipts needed (§26 Z 4 EStG).
+ * Capped at 6 months (180 nights) continuously at same destination.
+ */
+export function calculateNaechtigungsgeld(
+  input: NaechtigungsgeldInput
+): NaechtigungsgeldResult {
+  const qualifyingNights = Math.max(0, Math.min(input.overnightStays, 180));
+  return {
+    taxFreeAmount: roundCents(qualifyingNights * NAECHTIGUNGSGELD_RATE_EUR),
+    qualifyingNights,
+  };
+}
+
+/**
+ * Derives overnight stays from trip start/end times.
+ * Counts how many calendar-day midnight boundaries are crossed.
+ */
+export function deriveOvernightStays(startTime: Date, endTime: Date): number {
+  const startDay = new Date(
+    startTime.getFullYear(),
+    startTime.getMonth(),
+    startTime.getDate()
+  );
+  const endDay = new Date(
+    endTime.getFullYear(),
+    endTime.getMonth(),
+    endTime.getDate()
+  );
+  const daysDiff = Math.floor(
+    (endDay.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return Math.max(0, daysDiff);
+}
+
+// ─── International Taggeld ────────────────────────────────────────────────────
+
+export interface InternationalTaggeldInput {
+  /** ISO 3166-1 alpha-2 country code (e.g. "DE", "FR") */
+  countryCode: string;
+  durationInHours: number;
+  mealsProvided: 0 | 1 | 2;
+}
+
+export interface InternationalTaggeldResult {
+  grossStatutory: number;
+  net: number;
   mealDeduction: number;
-  /** Whether the 3-hour minimum was met */
+  countryRate24h: number;
   triggersTaggeld: boolean;
 }
 
 /**
- * Calculates Taggeld for a single trip period.
- *
- * For multi-day trips, call this function once per calendar day, passing that
- * day's active hours (up to 24). The cap is enforced per-call (≤ €30/day).
+ * Calculates international Taggeld using BMF country-specific rates.
+ * The aliquot calculation mirrors domestic rules (per started hour, capped at 24h rate).
  */
+export function calculateInternationalTaggeld(
+  input: InternationalTaggeldInput
+): InternationalTaggeldResult {
+  const { countryCode, durationInHours, mealsProvided } = input;
+  const countryRate24h =
+    INTERNATIONAL_PER_DIEM_RATES[countryCode.toUpperCase()]?.rate24h ??
+    INTERNATIONAL_FALLBACK_RATE_EUR;
+
+  // Must exceed 3 hours to trigger any allowance
+  if (durationInHours <= TAGGELD_MIN_HOURS) {
+    return {
+      grossStatutory: 0,
+      net: 0,
+      mealDeduction: 0,
+      countryRate24h,
+      triggersTaggeld: false,
+    };
+  }
+
+  // Aliquot: per started hour, capped at full day rate
+  const hourlyRate = countryRate24h / 24;
+  const startedHours = Math.ceil(durationInHours);
+  const grossStatutory = Math.min(
+    startedHours * hourlyRate,
+    countryRate24h
+  );
+
+  // International meal deduction: 1/3 of daily rate per meal (BMF practice)
+  const mealDeductionRate = countryRate24h / 3;
+  let mealDeduction = 0;
+  let net = grossStatutory;
+
+  if (mealsProvided >= 2) {
+    mealDeduction = grossStatutory;
+    net = 0;
+  } else if (mealsProvided === 1) {
+    mealDeduction = Math.min(mealDeductionRate, grossStatutory);
+    net = Math.max(0, grossStatutory - mealDeductionRate);
+  }
+
+  return {
+    grossStatutory: roundCents(grossStatutory),
+    net: roundCents(net),
+    mealDeduction: roundCents(mealDeduction),
+    countryRate24h,
+    triggersTaggeld: true,
+  };
+}
+
+// ─── Taggeld (Domestic) ───────────────────────────────────────────────────────
+
+export interface TaggeldInput {
+  durationInHours: number;
+  mealsProvided: 0 | 1 | 2;
+  kvDailyRate?: number;
+}
+
+export interface TaggeldResult {
+  grossStatutory: number;
+  net: number;
+  taxFreeAmount: number;
+  taxableAmount: number;
+  mealDeduction: number;
+  triggersTaggeld: boolean;
+}
+
 export function calculateTaggeld(input: TaggeldInput): TaggeldResult {
   const {
     durationInHours,
@@ -88,25 +234,18 @@ export function calculateTaggeld(input: TaggeldInput): TaggeldResult {
     triggersTaggeld: false,
   };
 
-  // ── 3-Hour Trigger ────────────────────────────────────────────────────────
-  if (durationInHours <= TAGGELD_MIN_HOURS) {
-    return ZERO_RESULT;
-  }
+  if (durationInHours <= TAGGELD_MIN_HOURS) return ZERO_RESULT;
 
-  // ── Aliquot Calculation (statutory) ──────────────────────────────────────
-  // "Per started hour" → ceil. Capped at the full daily rate.
   const startedHours = Math.ceil(durationInHours);
   const grossStatutory = Math.min(
     startedHours * TAGGELD_HOURLY_RATE_EUR,
     TAGGELD_DAILY_RATE_EUR
   );
 
-  // ── Meal Deductions (Kürzung) ─────────────────────────────────────────────
   let mealDeduction = 0;
   let netStatutory: number;
 
   if (mealsProvided >= 2) {
-    // 2+ meals → Taggeld collapses to exactly €0
     mealDeduction = grossStatutory;
     netStatutory = 0;
   } else if (mealsProvided === 1) {
@@ -116,30 +255,19 @@ export function calculateTaggeld(input: TaggeldInput): TaggeldResult {
     netStatutory = grossStatutory;
   }
 
-  // ── KV Splitter ───────────────────────────────────────────────────────────
-  // The KV excess is proportional to the same aliquot factor as the statutory.
-  const aliquotFactor = startedHours / 12; // e.g. 4h → 4/12 = 0.333
-  const kvGross = Math.min(
-    aliquotFactor * kvDailyRate,
-    kvDailyRate
-  );
-
-  // Tax-free: the net statutory portion (already capped at €30)
-  const taxFreeAmount = netStatutory;
-
-  // Taxable: proportional KV excess ONLY if trip triggers Taggeld
+  const aliquotFactor = startedHours / 12;
+  const kvGross = Math.min(aliquotFactor * kvDailyRate, kvDailyRate);
   const kvStatutoryGross = Math.min(
     aliquotFactor * TAGGELD_DAILY_RATE_EUR,
     TAGGELD_DAILY_RATE_EUR
   );
   const kvExcessGross = Math.max(0, kvGross - kvStatutoryGross);
-  // Apply meal-deduction ratio to KV excess too (conservative approach)
   const taxableAmount = mealsProvided >= 2 ? 0 : kvExcessGross;
 
   return {
     grossStatutory,
     net: netStatutory,
-    taxFreeAmount,
+    taxFreeAmount: netStatutory,
     taxableAmount,
     mealDeduction,
     triggersTaggeld: true,
@@ -149,59 +277,38 @@ export function calculateTaggeld(input: TaggeldInput): TaggeldResult {
 // ─── Kilometergeld ────────────────────────────────────────────────────────────
 
 export interface MileageInput {
-  /** Distance of the current trip in kilometres */
   distanceKm: number;
-  /** User's year-to-date mileage BEFORE this trip */
   ytdMileageKm: number;
 }
 
 export interface MileageResult {
-  /** Kilometres eligible for tax-free reimbursement */
   taxFreeKm: number;
-  /** Kilometres that exceed the annual cap (€0 tax-free reimbursement) */
   excessKm: number;
-  /** Total tax-free payout in EUR */
   payout: number;
-  /** Updated YTD mileage after this trip */
   newYtdMileageKm: number;
 }
 
-/**
- * Calculates Kilometergeld with the 30,000 km annual cap.
- * Excess kilometres beyond the cap yield €0 reimbursement.
- */
 export function calculateMileage(input: MileageInput): MileageResult {
   const { distanceKm, ytdMileageKm } = input;
-
   const remainingCap = Math.max(0, MILEAGE_ANNUAL_CAP_KM - ytdMileageKm);
   const taxFreeKm = Math.min(distanceKm, remainingCap);
   const excessKm = distanceKm - taxFreeKm;
   const payout = roundCents(taxFreeKm * MILEAGE_RATE_CAR_EUR_PER_KM);
-  const newYtdMileageKm = ytdMileageKm + distanceKm;
-
-  return { taxFreeKm, excessKm, payout, newYtdMileageKm };
+  return { taxFreeKm, excessKm, payout, newYtdMileageKm: ytdMileageKm + distanceKm };
 }
 
-// ─── 5/15 Day Rule (Mittelpunkt der Tätigkeit) ────────────────────────────────
+// ─── 5/15 Day Rule ────────────────────────────────────────────────────────────
 
 export interface DestinationRuleInput {
-  /** How many consecutive days the user has already been at this destination */
   consecutiveDaysAtDestination: number;
-  /** Total days at this destination in the current calendar year */
   totalDaysThisYearAtDestination: number;
 }
 
 export interface DestinationRuleResult {
-  /** If true, the destination is a secondary workplace → Taggeld = €0 */
   isSecondaryWorkplace: boolean;
-  /** Human-readable reason for audit logs */
   reason: string | null;
 }
 
-/**
- * Applies the 5/15-day rule per §26 Z 4 EStG.
- * Returns true when the destination has become a secondary workplace (Mittelpunkt).
- */
 export function checkDestinationRule(
   input: DestinationRuleInput
 ): DestinationRuleResult {
@@ -210,17 +317,15 @@ export function checkDestinationRule(
   if (consecutiveDaysAtDestination > DESTINATION_CONSECUTIVE_DAY_LIMIT) {
     return {
       isSecondaryWorkplace: true,
-      reason: `Destination exceeded ${DESTINATION_CONSECUTIVE_DAY_LIMIT} consecutive days (actual: ${consecutiveDaysAtDestination})`,
+      reason: `Exceeded ${DESTINATION_CONSECUTIVE_DAY_LIMIT} consecutive days (actual: ${consecutiveDaysAtDestination})`,
     };
   }
-
   if (totalDaysThisYearAtDestination > DESTINATION_ANNUAL_DAY_LIMIT) {
     return {
       isSecondaryWorkplace: true,
-      reason: `Destination exceeded ${DESTINATION_ANNUAL_DAY_LIMIT} days in calendar year (actual: ${totalDaysThisYearAtDestination})`,
+      reason: `Exceeded ${DESTINATION_ANNUAL_DAY_LIMIT} days in calendar year (actual: ${totalDaysThisYearAtDestination})`,
     };
   }
-
   return { isSecondaryWorkplace: false, reason: null };
 }
 
@@ -235,25 +340,22 @@ export interface TripInput {
   kvDailyRate?: number;
   consecutiveDaysAtDestination: number;
   totalDaysThisYearAtDestination: number;
+  /** ISO 3166-1 alpha-2 country code for international trips. Omit for domestic. */
+  countryCode?: string;
 }
 
 export interface TripResult {
   durationInHours: number;
   taggeld: TaggeldResult;
+  naechtigungsgeld: NaechtigungsgeldResult;
   mileage: MileageResult;
   destinationRule: DestinationRuleResult;
-  /** Effective Taggeld after applying the 5/15-day rule */
   effectiveTaggeldNet: number;
-  /** Total tax-free reimbursement (Taggeld + Kilometergeld) */
   totalTaxFree: number;
-  /** Total taxable amount (KV excess) */
   totalTaxable: number;
+  overnightStays: number;
 }
 
-/**
- * Master entry point: calculates the full reimbursement for a single trip.
- * Applies all Austrian rules in the correct order.
- */
 export function calculateTrip(input: TripInput): TripResult {
   const durationMs = input.endTime.getTime() - input.startTime.getTime();
   const durationInHours = durationMs / (1000 * 60 * 60);
@@ -265,12 +367,8 @@ export function calculateTrip(input: TripInput): TripResult {
 
   const taggeld = destinationRule.isSecondaryWorkplace
     ? ({
-        grossStatutory: 0,
-        net: 0,
-        taxFreeAmount: 0,
-        taxableAmount: 0,
-        mealDeduction: 0,
-        triggersTaggeld: false,
+        grossStatutory: 0, net: 0, taxFreeAmount: 0,
+        taxableAmount: 0, mealDeduction: 0, triggersTaggeld: false,
       } satisfies TaggeldResult)
     : calculateTaggeld({
         durationInHours,
@@ -278,29 +376,37 @@ export function calculateTrip(input: TripInput): TripResult {
         kvDailyRate: input.kvDailyRate,
       });
 
+  const overnightStays = deriveOvernightStays(input.startTime, input.endTime);
+  const naechtigungsgeld = destinationRule.isSecondaryWorkplace
+    ? { taxFreeAmount: 0, qualifyingNights: 0 }
+    : calculateNaechtigungsgeld({ overnightStays });
+
   const mileage = calculateMileage({
     distanceKm: input.distanceKm,
     ytdMileageKm: input.ytdMileageKm,
   });
 
   const effectiveTaggeldNet = taggeld.net;
-  const totalTaxFree = roundCents(effectiveTaggeldNet + mileage.payout);
+  const totalTaxFree = roundCents(
+    effectiveTaggeldNet + naechtigungsgeld.taxFreeAmount + mileage.payout
+  );
   const totalTaxable = roundCents(taggeld.taxableAmount);
 
   return {
     durationInHours,
     taggeld,
+    naechtigungsgeld,
     mileage,
     destinationRule,
     effectiveTaggeldNet,
     totalTaxFree,
     totalTaxable,
+    overnightStays,
   };
 }
 
 // ─── Utilities ─────────────────────────────────────────────────────────────────
 
-/** Rounds a monetary value to 2 decimal places (cent-precision). */
 export function roundCents(value: number): number {
   return Math.round(value * 100) / 100;
 }

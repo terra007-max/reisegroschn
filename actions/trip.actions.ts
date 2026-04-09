@@ -13,6 +13,8 @@ import { createClient } from "@/lib/supabase/server";
 import {
   calculateTaggeld,
   calculateMileage,
+  calculateNaechtigungsgeld,
+  deriveOvernightStays,
   checkDestinationRule,
   roundCents,
 } from "@/lib/AustrianTaxCalculator";
@@ -180,6 +182,12 @@ async function runCalculations(
         kvDailyRate: Number(profile.kv_daily_rate),
       });
 
+  // Nächtigungsgeld (§26 Z 4 EStG) — €17/night, derived from trip duration
+  const overnightStays = deriveOvernightStays(startTime, endTime);
+  const naechtigungsgeld = destinationRule.isSecondaryWorkplace
+    ? { taxFreeAmount: 0, qualifyingNights: 0 }
+    : calculateNaechtigungsgeld({ overnightStays });
+
   // Kilometergeld
   const mileage = calculateMileage({
     distanceKm: input.distance_km,
@@ -191,13 +199,18 @@ async function runCalculations(
     calculated_taggeld_gross: roundCents(taggeld.grossStatutory),
     calculated_taggeld_net: roundCents(taggeld.net),
     calculated_mileage_payout: mileage.payout,
-    calculated_total_tax_free: roundCents(taggeld.net + mileage.payout),
+    calculated_total_tax_free: roundCents(
+      taggeld.net + naechtigungsgeld.taxFreeAmount + mileage.payout
+    ),
     calculated_total_taxable: roundCents(taggeld.taxableAmount),
     consecutive_days_at_destination: consecutiveDays,
     total_days_this_year: yearlyDays,
     is_secondary_workplace: destinationRule.isSecondaryWorkplace,
     // For YTD update
     newYtdMileageKm: mileage.newYtdMileageKm,
+    // For preview breakdown
+    _naechtigungsgeld: naechtigungsgeld.taxFreeAmount,
+    _overnightStays: overnightStays,
   };
 }
 
@@ -222,9 +235,28 @@ export async function createTrip(
     }
 
     const input = parsed.data;
-    const calcs = await runCalculations(userId, input);
 
+    // ── Duplicate detection ──────────────────────────────────────────────────
+    // Block re-submission of the same trip (same destination within ±2h of start).
     const supabase = await createClient();
+    const startWindow = new Date(new Date(input.start_time).getTime() - 2 * 3600_000).toISOString();
+    const endWindow   = new Date(new Date(input.start_time).getTime() + 2 * 3600_000).toISOString();
+    const { data: duplicates } = await supabase
+      .from("trips")
+      .select("id")
+      .eq("user_id", userId)
+      .ilike("destination", input.destination.trim())
+      .gte("start_time", startWindow)
+      .lte("start_time", endWindow)
+      .neq("status", "REJECTED");
+    if (duplicates && duplicates.length > 0) {
+      return {
+        success: false,
+        error: "Mögliches Duplikat: Eine Reise zum gleichen Ziel zu dieser Zeit wurde bereits erfasst.",
+      };
+    }
+
+    const calcs = await runCalculations(userId, input);
 
     const { data: trip, error } = await supabase
       .from("trips")
@@ -552,6 +584,8 @@ export async function previewTrip(rawInput: unknown): Promise<
     durationInHours: number;
     taggeldGross: number;
     taggeldNet: number;
+    naechtigungsgeld: number;
+    overnightStays: number;
     mileagePayout: number;
     totalTaxFree: number;
     totalTaxable: number;
@@ -620,6 +654,11 @@ export async function previewTrip(rawInput: unknown): Promise<
           kvDailyRate: Number(profile.kv_daily_rate),
         });
 
+    const overnightStays = deriveOvernightStays(startTime, endTime);
+    const naechtigungsgeld = destinationRule.isSecondaryWorkplace
+      ? { taxFreeAmount: 0, qualifyingNights: 0 }
+      : calculateNaechtigungsgeld({ overnightStays });
+
     const mileage = calculateMileage({
       distanceKm: input.distance_km,
       ytdMileageKm: profile.ytd_mileage_km,
@@ -631,8 +670,12 @@ export async function previewTrip(rawInput: unknown): Promise<
         durationInHours: roundCents(durationInHours),
         taggeldGross: roundCents(taggeld.grossStatutory),
         taggeldNet: roundCents(taggeld.net),
+        naechtigungsgeld: naechtigungsgeld.taxFreeAmount,
+        overnightStays,
         mileagePayout: mileage.payout,
-        totalTaxFree: roundCents(taggeld.net + mileage.payout),
+        totalTaxFree: roundCents(
+          taggeld.net + naechtigungsgeld.taxFreeAmount + mileage.payout
+        ),
         totalTaxable: roundCents(taggeld.taxableAmount),
         isSecondaryWorkplace: destinationRule.isSecondaryWorkplace,
         triggersTaggeld: taggeld.triggersTaggeld ?? false,

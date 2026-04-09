@@ -61,6 +61,8 @@ interface PreviewData {
   durationInHours: number;
   taggeldGross: number;
   taggeldNet: number;
+  naechtigungsgeld: number;
+  overnightStays: number;
   mileagePayout: number;
   totalTaxFree: number;
   totalTaxable: number;
@@ -218,6 +220,28 @@ function PreviewPanel({
             </div>
           )}
         </div>
+
+        <Separator />
+
+        {/* Nächtigungsgeld */}
+        {preview.overnightStays > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Nächtigungsgeld (§26 Z 4 EStG)
+              </p>
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-muted-foreground">
+                  {preview.overnightStays} Nacht{preview.overnightStays > 1 ? "nächte" : ""} × €17
+                </span>
+                <span className="text-primary tabular-nums">
+                  {formatEur(preview.naechtigungsgeld)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
 
         <Separator />
 
