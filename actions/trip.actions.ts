@@ -244,7 +244,10 @@ export async function createTrip(
 
     if (error || !trip) {
       console.error("createTrip DB error:", error);
-      return { success: false, error: "Reise konnte nicht gespeichert werden." };
+      return {
+        success: false,
+        error: error?.message ?? "Reise konnte nicht gespeichert werden.",
+      };
     }
 
     // Update YTD mileage on the profile
