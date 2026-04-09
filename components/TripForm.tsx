@@ -404,7 +404,7 @@ export default function TripForm() {
           <Select
             defaultValue="0"
             onValueChange={(v) =>
-              setValue("meals_provided", parseInt(v, 10) as 0 | 1 | 2)
+              v != null && setValue("meals_provided", parseInt(v, 10) as 0 | 1 | 2)
             }
           >
             <SelectTrigger className="h-10">
