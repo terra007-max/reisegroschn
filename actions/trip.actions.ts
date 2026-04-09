@@ -208,9 +208,6 @@ async function runCalculations(
     is_secondary_workplace: destinationRule.isSecondaryWorkplace,
     // For YTD update
     newYtdMileageKm: mileage.newYtdMileageKm,
-    // For preview breakdown
-    _naechtigungsgeld: naechtigungsgeld.taxFreeAmount,
-    _overnightStays: overnightStays,
   };
 }
 
