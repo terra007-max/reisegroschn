@@ -16,6 +16,7 @@ import {
   Euro,
   ArrowRight,
   MapPin,
+  CheckCircle2,
 } from "lucide-react";
 import { MILEAGE_ANNUAL_CAP_KM } from "@/lib/AustrianTaxCalculator";
 
@@ -41,6 +42,45 @@ function formatDuration(start: string, end: string) {
   const m = Math.floor((ms % 3_600_000) / 60_000);
   return `${h}h ${m}m`;
 }
+
+const kpiConfig = [
+  {
+    key: "taxFree",
+    icon: Euro,
+    label: "Steuerfrei genehmigt",
+    sublabel: "Taggeld + Kilometergeld",
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-l-emerald-500",
+  },
+  {
+    key: "taxable",
+    icon: TrendingUp,
+    label: "KV-Überschuss",
+    sublabel: "Steuerpflichtiger Anteil",
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-l-amber-500",
+  },
+  {
+    key: "pending",
+    icon: Clock,
+    label: "Ausstehend",
+    sublabel: "Reisen zur Genehmigung",
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-l-blue-500",
+  },
+  {
+    key: "total",
+    icon: Car,
+    label: "Gesamt Reisen",
+    sublabel: "inkl. Entwürfe",
+    color: "text-primary",
+    bg: "bg-primary/5",
+    border: "border-l-primary",
+  },
+];
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -72,6 +112,19 @@ export default async function DashboardPage() {
     0
   );
 
+  const kpiValues: Record<string, { value: string; sub?: string }> = {
+    taxFree: { value: formatCurrency(totalTaxFree) },
+    taxable: { value: formatCurrency(totalTaxable) },
+    pending: {
+      value: String(pendingTrips.length),
+      sub: `${approvedTrips.length} genehmigt`,
+    },
+    total: {
+      value: String(trips.length),
+      sub: `${approvedTrips.length} genehmigt`,
+    },
+  };
+
   const recentTrips = [...trips]
     .sort(
       (a, b) =>
@@ -79,144 +132,140 @@ export default async function DashboardPage() {
     )
     .slice(0, 5);
 
+  const firstName = profile?.full_name?.split(" ")[0] ?? "";
+
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 sm:space-y-8">
+      {/* ── Header ──────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">
-            Guten Tag, {profile?.full_name?.split(" ")[0] ?? ""}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+            {firstName ? `Guten Tag, ${firstName}` : "Dashboard"}
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Ihre Reisekostenübersicht — {new Date().getFullYear()}
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            Reisekostenübersicht {new Date().getFullYear()}
           </p>
         </div>
-        <LinkButton href="/trips/new">
-          <PlusCircle className="w-4 h-4 mr-2" />
-          Neue Reise
+        <LinkButton href="/trips/new" className="shrink-0">
+          <PlusCircle className="w-4 h-4 mr-1.5" />
+          <span className="hidden sm:inline">Neue Reise</span>
+          <span className="sm:hidden">Neu</span>
         </LinkButton>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Euro className="w-3.5 h-3.5" />
-              Steuerfrei (genehmigt)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalTaxFree)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Taggeld + Kilometergeld
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <TrendingUp className="w-3.5 h-3.5" />
-              Steuerpflichtig (KV)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(totalTaxable)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              KV-Überschuss über €30
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-3.5 h-3.5" />
-              Ausstehend
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{pendingTrips.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingTrips.length === 1 ? "Reise" : "Reisen"} zur Genehmigung
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Car className="w-3.5 h-3.5" />
-              Gesamt Reisen
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{trips.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {approvedTrips.length} genehmigt
-            </p>
-          </CardContent>
-        </Card>
+      {/* ── KPI cards ───────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {kpiConfig.map((kpi) => {
+          const Icon = kpi.icon;
+          const vals = kpiValues[kpi.key];
+          return (
+            <Card
+              key={kpi.key}
+              className={cn(
+                "border-l-[3px] card-shadow",
+                kpi.border
+              )}
+            >
+              <CardContent className="pt-4 pb-4 px-4">
+                <div className={cn("w-7 h-7 rounded-md flex items-center justify-center mb-3", kpi.bg)}>
+                  <Icon className={cn("w-4 h-4", kpi.color)} />
+                </div>
+                <p className={cn("text-xl sm:text-2xl font-bold tabular-nums tracking-tight", kpi.color)}>
+                  {vals.value}
+                </p>
+                <p className="text-xs font-medium text-foreground mt-0.5 leading-tight">
+                  {kpi.label}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {kpi.sublabel}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* Kilometergeld cap progress */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+      {/* ── Mileage cap progress ─────────────────────────────── */}
+      <Card className="card-shadow">
+        <CardHeader className="pb-3 pt-4 px-5">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Car className="w-4 h-4 text-primary" />
-              Kilometerstand — Jahresgrenze (§26 Z 4b EStG)
+              Kilometergeld-Jahresgrenze
+              <span className="text-xs font-normal text-muted-foreground hidden sm:inline">
+                (§26 Z 4b EStG)
+              </span>
             </CardTitle>
-            <span className="text-sm font-semibold tabular-nums">
+            <span className="text-sm font-semibold tabular-nums text-foreground">
               {ytdMileage.toLocaleString("de-AT")} /{" "}
-              {MILEAGE_ANNUAL_CAP_KM.toLocaleString("de-AT")} km
+              <span className="text-muted-foreground font-normal">
+                {MILEAGE_ANNUAL_CAP_KM.toLocaleString("de-AT")} km
+              </span>
             </span>
           </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <Progress value={mileagePct} className="h-3" />
+        <CardContent className="pb-4 px-5 space-y-2">
+          <Progress
+            value={mileagePct}
+            className={cn(
+              "h-2.5 rounded-full",
+              mileagePct >= 90 ? "[&>div]:bg-destructive" : "[&>div]:bg-primary"
+            )}
+          />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>
               {(MILEAGE_ANNUAL_CAP_KM - ytdMileage).toLocaleString("de-AT")} km
               verbleibend à €0,50
             </span>
-            <span className={mileagePct >= 90 ? "text-destructive font-medium" : ""}>
+            <span
+              className={cn(
+                "font-medium",
+                mileagePct >= 90 ? "text-destructive" : ""
+              )}
+            >
               {mileagePct.toFixed(1)}% ausgeschöpft
             </span>
           </div>
           {mileagePct >= 100 && (
-            <p className="text-xs text-destructive font-medium bg-destructive/5 px-3 py-2 rounded-md">
-              Jahresgrenze erreicht — weitere Kilometer erhalten €0 Erstattung
+            <p className="text-xs text-destructive font-medium bg-destructive/5 border border-destructive/15 px-3 py-2 rounded-md">
+              Jahresgrenze erreicht — weitere Kilometer werden mit €0 erstattet
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Recent trips */}
+      {/* ── Recent trips ─────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold">Letzte Reisen</h2>
+          <h2 className="text-sm font-semibold text-foreground">Letzte Reisen</h2>
           <Link
             href="/trips"
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
-              "gap-1.5 text-xs"
+              "gap-1 text-xs h-7 px-2"
             )}
           >
-            Alle anzeigen <ArrowRight className="w-3.5 h-3.5" />
+            Alle anzeigen
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
         {recentTrips.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12 gap-3">
-              <MapPin className="w-10 h-10 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">
-                Noch keine Reisen erfasst
-              </p>
+          <Card className="card-shadow">
+            <CardContent className="flex flex-col items-center justify-center py-14 gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-muted-foreground/50" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-foreground">
+                  Noch keine Reisen erfasst
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Starten Sie mit Ihrer ersten Dienstreise
+                </p>
+              </div>
               <LinkButton href="/trips/new" size="sm">
-                <PlusCircle className="w-4 h-4 mr-2" />
+                <PlusCircle className="w-4 h-4 mr-1.5" />
                 Erste Reise anlegen
               </LinkButton>
             </CardContent>
@@ -224,12 +273,42 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-2">
             {recentTrips.map((trip) => (
-              <Link key={trip.id} href={`/trips/${trip.id}`}>
-                <Card className="hover:border-primary/30 transition-colors cursor-pointer">
-                  <CardContent className="flex items-center justify-between py-4">
+              <Link key={trip.id} href={`/trips/${trip.id}`} className="block">
+                <Card className="card-shadow hover:card-shadow-md hover:border-primary/25 transition-all duration-150 cursor-pointer group">
+                  <CardContent className="flex items-center gap-3 py-3.5 px-4">
+                    {/* Status icon */}
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                        trip.status === "APPROVED"
+                          ? "bg-emerald-50"
+                          : trip.status === "PENDING"
+                          ? "bg-amber-50"
+                          : trip.status === "REJECTED"
+                          ? "bg-red-50"
+                          : "bg-muted"
+                      )}
+                    >
+                      {trip.status === "APPROVED" ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <MapPin
+                          className={cn(
+                            "w-4 h-4",
+                            trip.status === "PENDING"
+                              ? "text-amber-600"
+                              : trip.status === "REJECTED"
+                              ? "text-red-500"
+                              : "text-muted-foreground"
+                          )}
+                        />
+                      )}
+                    </div>
+
+                    {/* Info */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm truncate">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-sm truncate">
                           {trip.destination}
                         </p>
                         <StatusBadge status={trip.status} />
@@ -240,11 +319,13 @@ export default async function DashboardPage() {
                         {trip.distance_km} km
                       </p>
                     </div>
-                    <div className="text-right ml-4 flex-shrink-0">
-                      <p className="font-semibold text-sm text-primary">
+
+                    {/* Amount */}
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <p className="font-bold text-sm text-primary tabular-nums">
                         {formatCurrency(trip.calculated_total_tax_free)}
                       </p>
-                      <p className="text-xs text-muted-foreground">steuerfrei</p>
+                      <p className="text-[10px] text-muted-foreground">steuerfrei</p>
                     </div>
                   </CardContent>
                 </Card>
