@@ -178,10 +178,11 @@ async function runCalculations(
     ? { taxFreeAmount: 0, qualifyingNights: 0 }
     : calculateNaechtigungsgeld({ overnightStays });
 
-  // Kilometergeld
+  // Kilometergeld (with optional passenger supplement)
   const mileage = calculateMileage({
     distanceKm: input.distance_km,
     ytdMileageKm,
+    passengerCount: input.passenger_count ?? 0,
   });
 
   return {
@@ -249,11 +250,15 @@ export async function createTrip(
       .from("trips")
       .insert({
         user_id: userId,
+        purpose: input.purpose,
         destination: input.destination,
         start_time: input.start_time,
         end_time: input.end_time,
         distance_km: input.distance_km,
+        passenger_count: input.passenger_count ?? 0,
         meals_provided: input.meals_provided,
+        segments: input.segments ?? [],
+        border_crossings: input.border_crossings ?? [],
         notes: input.notes ?? null,
         status: "DRAFT",
         ...calcs,
@@ -334,12 +339,16 @@ export async function updateTrip(
 
     // Merge with existing values so partial updates work
     const merged: CreateTripInput = {
+      purpose: parsed.data.purpose ?? (existing.purpose ?? ""),
       destination: parsed.data.destination ?? existing.destination,
       start_time: parsed.data.start_time ?? existing.start_time,
       end_time: parsed.data.end_time ?? existing.end_time,
       distance_km: parsed.data.distance_km ?? existing.distance_km,
+      passenger_count: parsed.data.passenger_count ?? existing.passenger_count ?? 0,
       meals_provided:
         (parsed.data.meals_provided as 0 | 1 | 2) ?? existing.meals_provided,
+      segments: parsed.data.segments ?? existing.segments ?? [],
+      border_crossings: parsed.data.border_crossings ?? existing.border_crossings ?? [],
       notes: parsed.data.notes ?? existing.notes ?? undefined,
     };
 

@@ -6,26 +6,29 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import {
-  Loader2,
-  Calculator,
-  AlertTriangle,
-  CheckCircle2,
-  Euro,
-  Car,
-  Clock,
+  Loader2, Calculator, AlertTriangle, CheckCircle2,
+  Euro, Car, Clock, Plus, Trash2, Plane, Train,
+  Bus, MapPin, Briefcase, ChevronDown, Users,
 } from "lucide-react";
 
 import { CreateTripSchema } from "@/lib/schemas";
+import { INTERNATIONAL_PER_DIEM_RATES } from "@/lib/AustrianTaxCalculator";
+import type { Segment, BorderCrossing } from "@/lib/schemas";
 
-// Explicit form values type avoids Zod input/output mismatch with react-hook-form
+type TransportMode = "CAR" | "FLIGHT" | "TRAIN" | "BUS" | "OTHER";
+type SegmentType = "TRAVEL" | "WORK";
+
 type TripFormValues = {
+  purpose: string;
   destination: string;
   start_time: string;
   end_time: string;
   distance_km: number;
+  passenger_count: number;
   meals_provided: 0 | 1 | 2;
   notes: string;
 };
+
 import { createTrip, previewTrip } from "@/actions/trip.actions";
 import type { Resolver } from "react-hook-form";
 
@@ -46,14 +49,28 @@ import { cn } from "@/lib/utils";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Convert a datetime-local string ("YYYY-MM-DDTHH:mm") to a full ISO UTC string. */
 function datetimeLocalToISO(val: string): string {
   if (!val) return "";
-  // datetime-local omits seconds — add them so Date can parse correctly
   const withSec = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(val) ? val + ":00" : val;
   const d = new Date(withSec);
   return isNaN(d.getTime()) ? val : d.toISOString();
 }
+
+function uid() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+const TRANSPORT_LABELS: Record<TransportMode, { label: string; Icon: React.ElementType }> = {
+  CAR:    { label: "Auto",    Icon: Car },
+  FLIGHT: { label: "Flug",   Icon: Plane },
+  TRAIN:  { label: "Zug",    Icon: Train },
+  BUS:    { label: "Bus",    Icon: Bus },
+  OTHER:  { label: "Sonstig",Icon: MapPin },
+};
+
+const COUNTRY_OPTIONS = Object.entries(INTERNATIONAL_PER_DIEM_RATES)
+  .map(([code, { name }]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name, "de"));
 
 // ─── Preview panel ────────────────────────────────────────────────────────────
 
@@ -71,10 +88,7 @@ interface PreviewData {
 }
 
 function formatEur(v: number) {
-  return new Intl.NumberFormat("de-AT", {
-    style: "currency",
-    currency: "EUR",
-  }).format(v);
+  return new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" }).format(v);
 }
 
 function formatHours(h: number) {
@@ -83,13 +97,7 @@ function formatHours(h: number) {
   return `${hrs}h ${mins}m`;
 }
 
-function PreviewPanel({
-  preview,
-  loading,
-}: {
-  preview: PreviewData | null;
-  loading: boolean;
-}) {
+function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loading: boolean }) {
   if (loading) {
     return (
       <Card className="border-dashed card-shadow">
@@ -109,9 +117,7 @@ function PreviewPanel({
             <Calculator className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">Gesetzliche Sätze 2024</span>
           </div>
-
           <Separator />
-
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Taggeld (§26 Z 4 EStG)
@@ -119,7 +125,7 @@ function PreviewPanel({
             <div className="space-y-1.5">
               {[
                 { label: "Unter 3 Stunden", value: "€ 0,00" },
-                { label: "3 – 12 Stunden", value: "€ 13,20" },
+                { label: "3 – 12 Stunden",  value: "€ 13,20" },
                 { label: "Über 12 Stunden", value: "€ 26,40" },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between text-sm">
@@ -129,29 +135,24 @@ function PreviewPanel({
               ))}
             </div>
           </div>
-
           <Separator />
-
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
               Kilometergeld (§26 Z 4b EStG)
             </p>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5" />
-                bis 30.000 km/Jahr
+                <Car className="w-3.5 h-3.5" /> bis 30.000 km/Jahr
               </span>
               <span className="tabular-nums font-medium">€ 0,50 / km</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5" />
-                ab 30.000 km/Jahr
+                <Users className="w-3.5 h-3.5" /> + Beifahrer
               </span>
-              <span className="tabular-nums font-medium text-muted-foreground">€ 0,00 / km</span>
+              <span className="tabular-nums font-medium">+ € 0,05 / km</span>
             </div>
           </div>
-
           <div className="text-[11px] text-muted-foreground bg-muted/60 rounded-lg px-3 py-2 leading-relaxed">
             Zielort und Zeiten eingeben für Ihre persönliche Berechnung.
           </div>
@@ -161,28 +162,17 @@ function PreviewPanel({
   }
 
   return (
-    <Card
-      className={cn(
-        "card-shadow border-2 transition-colors duration-200",
-        preview.totalTaxFree > 0 ? "border-primary/20" : "border-border"
-      )}
-    >
+    <Card className={cn("card-shadow border-2 transition-colors duration-200", preview.totalTaxFree > 0 ? "border-primary/20" : "border-border")}>
       <CardContent className="pt-5 space-y-4">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold flex items-center gap-1.5">
-            <Calculator className="w-4 h-4 text-primary" />
-            Berechnung
+            <Calculator className="w-4 h-4 text-primary" /> Berechnung
           </span>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            <Clock className="w-3 h-3 inline mr-1" />
-            {formatHours(preview.durationInHours)}
+            <Clock className="w-3 h-3 inline mr-1" />{formatHours(preview.durationInHours)}
           </span>
         </div>
-
         <Separator />
-
-        {/* Taggeld */}
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Taggeld (§26 Z 4 EStG)
@@ -206,24 +196,16 @@ function PreviewPanel({
               {preview.taggeldGross !== preview.taggeldNet && (
                 <div className="flex justify-between text-sm text-destructive">
                   <span>Mahlzeitenkürzung</span>
-                  <span className="tabular-nums">
-                    − {formatEur(preview.taggeldGross - preview.taggeldNet)}
-                  </span>
+                  <span className="tabular-nums">− {formatEur(preview.taggeldGross - preview.taggeldNet)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-semibold">
                 <span>Netto Taggeld</span>
-                <span className="text-primary tabular-nums">
-                  {formatEur(preview.taggeldNet)}
-                </span>
+                <span className="text-primary tabular-nums">{formatEur(preview.taggeldNet)}</span>
               </div>
             </div>
           )}
         </div>
-
-        <Separator />
-
-        {/* Nächtigungsgeld */}
         {preview.overnightStays > 0 && (
           <>
             <Separator />
@@ -235,44 +217,30 @@ function PreviewPanel({
                 <span className="text-muted-foreground">
                   {preview.overnightStays} Nacht{preview.overnightStays > 1 ? "nächte" : ""} × €17
                 </span>
-                <span className="text-primary tabular-nums">
-                  {formatEur(preview.naechtigungsgeld)}
-                </span>
+                <span className="text-primary tabular-nums">{formatEur(preview.naechtigungsgeld)}</span>
               </div>
             </div>
           </>
         )}
-
         <Separator />
-
-        {/* Kilometergeld */}
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             Kilometergeld
           </p>
           <div className="flex justify-between text-sm font-semibold">
             <span className="flex items-center gap-1.5">
-              <Car className="w-3.5 h-3.5 text-muted-foreground" />
-              à €0,50/km
+              <Car className="w-3.5 h-3.5 text-muted-foreground" /> à €0,50/km
             </span>
-            <span className="text-primary tabular-nums">
-              {formatEur(preview.mileagePayout)}
-            </span>
+            <span className="text-primary tabular-nums">{formatEur(preview.mileagePayout)}</span>
           </div>
         </div>
-
         <Separator />
-
-        {/* Total */}
         <div className="space-y-1.5">
           <div className="flex justify-between font-bold text-base">
             <span className="flex items-center gap-1.5">
-              <Euro className="w-4 h-4 text-primary" />
-              Gesamt steuerfrei
+              <Euro className="w-4 h-4 text-primary" /> Gesamt steuerfrei
             </span>
-            <span className="text-primary tabular-nums">
-              {formatEur(preview.totalTaxFree)}
-            </span>
+            <span className="text-primary tabular-nums">{formatEur(preview.totalTaxFree)}</span>
           </div>
           {preview.totalTaxable > 0 && (
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -281,7 +249,6 @@ function PreviewPanel({
             </div>
           )}
         </div>
-
         {preview.totalTaxFree > 0 && (
           <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200/50 rounded-lg p-2.5 text-xs">
             <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
@@ -293,6 +260,218 @@ function PreviewPanel({
   );
 }
 
+// ─── Segment row ──────────────────────────────────────────────────────────────
+
+function SegmentRow({
+  seg,
+  onChange,
+  onRemove,
+}: {
+  seg: Segment;
+  onChange: (updated: Segment) => void;
+  onRemove: () => void;
+}) {
+  const isWork = seg.type === "WORK";
+  const Icon = seg.transport ? TRANSPORT_LABELS[seg.transport as TransportMode]?.Icon ?? MapPin : Briefcase;
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/40 border rounded-lg">
+      {/* Type / mode selector */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className={cn("w-7 h-7 rounded-md flex items-center justify-center", isWork ? "bg-blue-50" : "bg-primary/5")}>
+          <Icon className={cn("w-3.5 h-3.5", isWork ? "text-blue-600" : "text-primary")} />
+        </div>
+        <Select
+          value={isWork ? "WORK" : (seg.transport ?? "CAR")}
+          onValueChange={(v) => {
+            if (v === "WORK") {
+              onChange({ ...seg, type: "WORK", transport: undefined });
+            } else {
+              onChange({ ...seg, type: "TRAVEL", transport: v as TransportMode });
+            }
+          }}
+        >
+          <SelectTrigger className="h-8 w-28 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="CAR">Auto</SelectItem>
+            <SelectItem value="FLIGHT">Flug</SelectItem>
+            <SelectItem value="TRAIN">Zug</SelectItem>
+            <SelectItem value="BUS">Bus</SelectItem>
+            <SelectItem value="OTHER">Sonstig</SelectItem>
+            <SelectItem value="WORK">Arbeitszeit</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Fields */}
+      <div className="flex flex-1 flex-wrap gap-2 items-center min-w-0">
+        {isWork ? (
+          <>
+            <Input
+              placeholder="Ort / Veranstaltung"
+              className="h-8 text-xs flex-1 min-w-[120px]"
+              value={seg.description ?? ""}
+              onChange={(e) => onChange({ ...seg, description: e.target.value })}
+            />
+          </>
+        ) : (
+          <>
+            <Input
+              placeholder="Von"
+              className="h-8 text-xs w-24"
+              value={seg.from ?? ""}
+              onChange={(e) => onChange({ ...seg, from: e.target.value })}
+            />
+            <span className="text-muted-foreground text-xs">→</span>
+            <Input
+              placeholder="Nach"
+              className="h-8 text-xs w-24"
+              value={seg.to ?? ""}
+              onChange={(e) => onChange({ ...seg, to: e.target.value })}
+            />
+          </>
+        )}
+        <Input
+          type="time"
+          className="h-8 text-xs w-24"
+          value={seg.start_time ?? ""}
+          onChange={(e) => onChange({ ...seg, start_time: e.target.value })}
+        />
+        <span className="text-muted-foreground text-xs">–</span>
+        <Input
+          type="time"
+          className="h-8 text-xs w-24"
+          value={seg.end_time ?? ""}
+          onChange={(e) => onChange({ ...seg, end_time: e.target.value })}
+        />
+        {seg.transport === "CAR" && (
+          <div className="relative w-20">
+            <Input
+              type="number"
+              min={0}
+              placeholder="0"
+              className="h-8 text-xs pr-6"
+              value={seg.km ?? ""}
+              onChange={(e) => onChange({ ...seg, km: parseInt(e.target.value) || 0 })}
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">km</span>
+          </div>
+        )}
+      </div>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// ─── Border crossing row ──────────────────────────────────────────────────────
+
+function CrossingRow({
+  crossing,
+  onChange,
+  onRemove,
+}: {
+  crossing: BorderCrossing;
+  onChange: (updated: BorderCrossing) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/40 border rounded-lg">
+      <Select
+        value={crossing.direction}
+        onValueChange={(v) => onChange({ ...crossing, direction: v as "ENTRY" | "EXIT" })}
+      >
+        <SelectTrigger className="h-8 w-28 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ENTRY">Einreise</SelectItem>
+          <SelectItem value="EXIT">Ausreise</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
+        value={crossing.country_code}
+        onValueChange={(v) => {
+          const found = COUNTRY_OPTIONS.find((c) => c.code === v);
+          onChange({ ...crossing, country_code: v, country_name: found?.name ?? v });
+        }}
+      >
+        <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs">
+          <SelectValue placeholder="Land wählen" />
+        </SelectTrigger>
+        <SelectContent>
+          {COUNTRY_OPTIONS.map((c) => (
+            <SelectItem key={c.code} value={c.code} className="text-xs">
+              {c.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        type="datetime-local"
+        className="h-8 text-xs flex-1 min-w-[160px]"
+        value={crossing.crossed_at.slice(0, 16)}
+        onChange={(e) => onChange({ ...crossing, crossed_at: datetimeLocalToISO(e.target.value) })}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+      >
+        <Trash2 className="w-3.5 h-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+// ─── Collapsible section ──────────────────────────────────────────────────────
+
+function Section({
+  title,
+  badge,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  badge?: number;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border rounded-xl overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+      >
+        <span className="text-sm font-semibold flex items-center gap-2">
+          {title}
+          {badge !== undefined && badge > 0 && (
+            <span className="text-xs font-medium bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 leading-none">
+              {badge}
+            </span>
+          )}
+        </span>
+        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="p-4 space-y-3">{children}</div>}
+    </div>
+  );
+}
+
 // ─── Main form ────────────────────────────────────────────────────────────────
 
 export default function TripForm() {
@@ -300,6 +479,8 @@ export default function TripForm() {
   const [isPending, startTransition] = useTransition();
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [crossings, setCrossings] = useState<BorderCrossing[]>([]);
 
   const {
     register,
@@ -311,60 +492,50 @@ export default function TripForm() {
   } = useForm<TripFormValues>({
     resolver: zodResolver(CreateTripSchema) as Resolver<TripFormValues>,
     defaultValues: {
+      purpose: "",
       destination: "",
       start_time: "",
       end_time: "",
       distance_km: 0,
+      passenger_count: 0,
       meals_provided: 0,
       notes: "",
     },
   });
 
   const watchedValues = watch([
-    "destination",
-    "start_time",
-    "end_time",
-    "distance_km",
-    "meals_provided",
+    "destination", "start_time", "end_time", "distance_km", "meals_provided", "passenger_count",
   ]);
 
   const runPreview = useCallback(async () => {
-    const [destination, start_time, end_time, distance_km, meals_provided] =
-      watchedValues;
-
-    if (!destination || !start_time || !end_time) {
-      setPreview(null);
-      return;
-    }
-
+    const [destination, start_time, end_time, distance_km, meals_provided, passenger_count] = watchedValues;
+    if (!destination || !start_time || !end_time) { setPreview(null); return; }
     setPreviewLoading(true);
     const result = await previewTrip({
+      purpose: "preview",
       destination,
       start_time,
       end_time,
       distance_km: distance_km ?? 0,
       meals_provided: meals_provided ?? 0,
+      passenger_count: passenger_count ?? 0,
+      segments: [],
+      border_crossings: [],
     });
     setPreviewLoading(false);
-
-    if (result.success) {
-      setPreview(result.data);
-    } else {
-      setPreview(null);
-    }
+    if (result.success) setPreview(result.data);
+    else setPreview(null);
   }, // eslint-disable-next-line react-hooks/exhaustive-deps
   [JSON.stringify(watchedValues)]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      runPreview();
-    }, 400);
+    const timer = setTimeout(runPreview, 400);
     return () => clearTimeout(timer);
   }, [runPreview]);
 
   function onSubmit(data: TripFormValues) {
     startTransition(async () => {
-      const result = await createTrip(data);
+      const result = await createTrip({ ...data, segments, border_crossings: crossings });
       if (result.success) {
         toast.success("Reise gespeichert", {
           description: `Entwurf für „${result.data.destination}" angelegt.`,
@@ -374,23 +545,67 @@ export default function TripForm() {
         toast.error("Fehler beim Speichern", { description: result.error });
         if (result.fieldErrors) {
           Object.entries(result.fieldErrors).forEach(([field, errs]) => {
-            setError(field as keyof TripFormValues, {
-              message: errs[0] ?? "Ungültiger Wert",
-            });
+            setError(field as keyof TripFormValues, { message: errs[0] ?? "Ungültiger Wert" });
           });
         }
       }
     });
   }
 
+  function addSegment(type: SegmentType) {
+    setSegments((prev) => [
+      ...prev,
+      { id: uid(), type, transport: type === "TRAVEL" ? "CAR" : undefined },
+    ]);
+  }
+
+  function updateSegment(id: string, updated: Segment) {
+    setSegments((prev) => prev.map((s) => (s.id === id ? updated : s)));
+  }
+
+  function removeSegment(id: string) {
+    setSegments((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  function addCrossing() {
+    setCrossings((prev) => [
+      ...prev,
+      { id: uid(), country_code: "DE", country_name: "Deutschland", crossed_at: "", direction: "ENTRY" },
+    ]);
+  }
+
+  function updateCrossing(id: string, updated: BorderCrossing) {
+    setCrossings((prev) => prev.map((c) => (c.id === id ? updated : c)));
+  }
+
+  function removeCrossing(id: string) {
+    setCrossings((prev) => prev.filter((c) => c.id !== id));
+  }
+
+  const passengerCount = watch("passenger_count");
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
       {/* ── Form ──────────────────────────────────────────────── */}
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="lg:col-span-3 space-y-5"
-      >
-        {/* Destination */}
+      <form onSubmit={handleSubmit(onSubmit)} className="lg:col-span-3 space-y-5">
+
+        {/* Reisezweck — REQUIRED */}
+        <div className="space-y-1.5">
+          <Label htmlFor="purpose">
+            Reisezweck <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="purpose"
+            placeholder="z.B. Kundentermin, Messe München, Schulung"
+            className="h-10"
+            {...register("purpose")}
+          />
+          {errors.purpose && (
+            <p className="text-xs text-destructive">{errors.purpose.message}</p>
+          )}
+        </div>
+
+        {/* Zielort */}
         <div className="space-y-1.5">
           <Label htmlFor="destination">Zielort</Label>
           <Input
@@ -407,7 +622,7 @@ export default function TripForm() {
           </p>
         </div>
 
-        {/* Date range */}
+        {/* Abreise / Rückkehr */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="start_time">Abreise</Label>
@@ -415,14 +630,10 @@ export default function TripForm() {
               id="start_time"
               type="datetime-local"
               className="h-10"
-              {...register("start_time", {
-                setValueAs: datetimeLocalToISO,
-              })}
+              {...register("start_time", { setValueAs: datetimeLocalToISO })}
             />
             {errors.start_time && (
-              <p className="text-xs text-destructive">
-                {errors.start_time.message}
-              </p>
+              <p className="text-xs text-destructive">{errors.start_time.message}</p>
             )}
           </div>
           <div className="space-y-1.5">
@@ -431,46 +642,115 @@ export default function TripForm() {
               id="end_time"
               type="datetime-local"
               className="h-10"
-              {...register("end_time", {
-                setValueAs: datetimeLocalToISO,
-              })}
+              {...register("end_time", { setValueAs: datetimeLocalToISO })}
             />
             {errors.end_time && (
-              <p className="text-xs text-destructive">
-                {errors.end_time.message}
+              <p className="text-xs text-destructive">{errors.end_time.message}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Reiseabschnitte */}
+        <Section title="Reiseabschnitte" badge={segments.length}>
+          <p className="text-xs text-muted-foreground">
+            Einzelne Fahrt-, Flug- oder Zugabschnitte sowie Arbeitszeiten am Zielort erfassen.
+          </p>
+          <div className="space-y-2">
+            {segments.map((seg) => (
+              <SegmentRow
+                key={seg.id}
+                seg={seg}
+                onChange={(u) => updateSegment(seg.id, u)}
+                onRemove={() => removeSegment(seg.id)}
+              />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => addSegment("TRAVEL")}>
+              <Plus className="w-3.5 h-3.5 mr-1" /> Fahrtabschnitt
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => addSegment("WORK")}>
+              <Briefcase className="w-3.5 h-3.5 mr-1" /> Arbeitszeit
+            </Button>
+          </div>
+        </Section>
+
+        {/* Grenzübertritte */}
+        <Section title="Grenzübertritte (Ausland)" badge={crossings.length}>
+          <p className="text-xs text-muted-foreground">
+            Zeitpunkt und Land des Grenzübertritts — relevant für ausländische Taggeld-Sätze (BMF-Erlass).
+          </p>
+          <div className="space-y-2">
+            {crossings.map((c) => (
+              <CrossingRow
+                key={c.id}
+                crossing={c}
+                onChange={(u) => updateCrossing(c.id, u)}
+                onRemove={() => removeCrossing(c.id)}
+              />
+            ))}
+          </div>
+          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={addCrossing}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Grenzübertritt hinzufügen
+          </Button>
+        </Section>
+
+        {/* Kilometergeld */}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="distance_km">Gefahrene Kilometer</Label>
+            <div className="relative">
+              <Input
+                id="distance_km"
+                type="number"
+                min={0}
+                max={5000}
+                placeholder="0"
+                className="h-10 pr-10"
+                {...register("distance_km", { valueAsNumber: true })}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">km</span>
+            </div>
+            {errors.distance_km && (
+              <p className="text-xs text-destructive">{errors.distance_km.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Hin- und Rückfahrt (§26 Z 4b EStG · €0,50/km)
+            </p>
+          </div>
+
+          {/* Passenger */}
+          <div className="space-y-1.5">
+            <Label htmlFor="passenger_count">
+              Beifahrer im PKW{" "}
+              <span className="text-muted-foreground font-normal text-xs">(+€0,05/km pro Person)</span>
+            </Label>
+            <Select
+              defaultValue="0"
+              onValueChange={(v) => setValue("passenger_count", parseInt(v, 10))}
+            >
+              <SelectTrigger className="h-10" id="passenger_count">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">Kein Beifahrer</SelectItem>
+                <SelectItem value="1">1 Beifahrer (€0,55/km)</SelectItem>
+                <SelectItem value="2">2 Beifahrer (€0,60/km)</SelectItem>
+                <SelectItem value="3">3 Beifahrer (€0,65/km)</SelectItem>
+                <SelectItem value="4">4 Beifahrer (€0,70/km)</SelectItem>
+              </SelectContent>
+            </Select>
+            {passengerCount > 0 && (
+              <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/50 rounded-md px-2 py-1.5">
+                Beifahrerzuschlag: +{passengerCount} × €0,05 = €{(passengerCount * 0.05).toFixed(2)}/km zusätzlich
               </p>
             )}
           </div>
         </div>
 
-        {/* Distance */}
+        {/* Mahlzeiten */}
         <div className="space-y-1.5">
-          <Label htmlFor="distance_km">Gefahrene Kilometer</Label>
-          <div className="relative">
-            <Input
-              id="distance_km"
-              type="number"
-              min={0}
-              max={5000}
-              placeholder="0"
-              className="h-10 pr-10"
-              {...register("distance_km", { valueAsNumber: true })}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">
-              km
-            </span>
-          </div>
-          {errors.distance_km && (
-            <p className="text-xs text-destructive">{errors.distance_km.message}</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Hin- und Rückfahrt (§26 Z 4b EStG · €0,50/km)
-          </p>
-        </div>
-
-        {/* Meals */}
-        <div className="space-y-1.5">
-          <Label>Vom Arbeitgeber bezahlte Mahlzeiten</Label>
+          <Label>Inkludierte / bezahlte Mahlzeiten</Label>
           <Select
             defaultValue="0"
             onValueChange={(v) =>
@@ -482,48 +762,36 @@ export default function TripForm() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="0">Keine</SelectItem>
-              <SelectItem value="1">1 Mahlzeit (−€15 Kürzung)</SelectItem>
-              <SelectItem value="2">2+ Mahlzeiten (Taggeld entfällt)</SelectItem>
+              <SelectItem value="1">1 Mahlzeit (z.B. Frühstück im Hotel)</SelectItem>
+              <SelectItem value="2">2 oder mehr Mahlzeiten (z.B. Vollpension)</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Mahlzeiten kürzen das Taggeld (§26 Z 4 EStG)
+            Inkludierte Mahlzeiten kürzen das Taggeld (§26 Z 4 EStG)
           </p>
         </div>
 
-        {/* Notes */}
+        {/* Notizen */}
         <div className="space-y-1.5">
           <Label htmlFor="notes">
             Notizen{" "}
-            <span className="text-muted-foreground font-normal text-xs">
-              (optional)
-            </span>
+            <span className="text-muted-foreground font-normal text-xs">(optional)</span>
           </Label>
           <Textarea
             id="notes"
-            placeholder="Zweck der Reise, Kunden, Projekte…"
+            placeholder="Kunden, Projekte, sonstige Anmerkungen…"
             className="resize-none"
-            rows={3}
+            rows={2}
             {...register("notes")}
           />
         </div>
 
         <div className="flex gap-3 pt-1">
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="flex-1 h-10 font-medium"
-          >
+          <Button type="submit" disabled={isPending} className="flex-1 h-10 font-medium">
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Als Entwurf speichern
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.back()}
-            disabled={isPending}
-            className="h-10"
-          >
+          <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="h-10">
             Abbrechen
           </Button>
         </div>

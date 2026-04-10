@@ -45,6 +45,30 @@ export const UpdateProfileSchema = z.object({
 
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 
+// ─── Trip Segments & Border Crossings ─────────────────────────────────────────
+
+export const SegmentSchema = z.object({
+  id: z.string(),
+  type: z.enum(["TRAVEL", "WORK"]),
+  transport: z.enum(["CAR", "FLIGHT", "TRAIN", "BUS", "OTHER"]).optional(),
+  from: z.string().max(200).optional(),
+  to: z.string().max(200).optional(),
+  start_time: z.string().optional(),
+  end_time: z.string().optional(),
+  km: z.number().int().min(0).optional(),
+  description: z.string().max(500).optional(),
+});
+export type Segment = z.infer<typeof SegmentSchema>;
+
+export const BorderCrossingSchema = z.object({
+  id: z.string(),
+  country_code: z.string().min(2).max(2),
+  country_name: z.string(),
+  crossed_at: z.string(),
+  direction: z.enum(["ENTRY", "EXIT"]),
+});
+export type BorderCrossing = z.infer<typeof BorderCrossingSchema>;
+
 // ─── Trip ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -53,6 +77,12 @@ export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
  */
 export const CreateTripSchema = z
   .object({
+    purpose: z
+      .string()
+      .min(2, "Reisezweck ist Pflichtfeld")
+      .max(500)
+      .transform((v) => v.trim()),
+
     destination: z
       .string()
       .min(2, "Zielort muss mindestens 2 Zeichen haben")
@@ -73,9 +103,15 @@ export const CreateTripSchema = z
       .min(0, "Kilometer kann nicht negativ sein")
       .max(5000, "Kilometer pro Fahrt zu hoch (max. 5000)"),
 
+    passenger_count: z.number().int().min(0).max(8).default(0),
+
     meals_provided: z
       .union([z.literal(0), z.literal(1), z.literal(2)])
       .default(0),
+
+    segments: z.array(SegmentSchema).default([]),
+
+    border_crossings: z.array(BorderCrossingSchema).default([]),
 
     notes: z.string().max(1000).optional(),
   })
@@ -101,6 +137,7 @@ export type CreateTripInput = z.infer<typeof CreateTripSchema>;
 // UpdateTripSchema must be defined independently — Zod v4 forbids .partial()
 // on schemas that contain .refine() calls.
 export const UpdateTripSchema = z.object({
+  purpose: z.string().min(2).max(500).transform((v) => v.trim()).optional(),
   destination: z
     .string()
     .min(2, "Zielort muss mindestens 2 Zeichen haben")
@@ -115,7 +152,10 @@ export const UpdateTripSchema = z.object({
     .min(0)
     .max(5000)
     .optional(),
+  passenger_count: z.number().int().min(0).max(8).optional(),
   meals_provided: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
+  segments: z.array(SegmentSchema).optional(),
+  border_crossings: z.array(BorderCrossingSchema).optional(),
   notes: z.string().max(1000).optional(),
 });
 export type UpdateTripInput = z.infer<typeof UpdateTripSchema>;
@@ -124,11 +164,15 @@ export type UpdateTripInput = z.infer<typeof UpdateTripSchema>;
 export const TripSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),
+  purpose: z.string().nullable().default(""),
   destination: z.string(),
   start_time: z.string().datetime(),
   end_time: z.string().datetime(),
   distance_km: z.number().int(),
+  passenger_count: z.number().int().nullable().default(0),
   meals_provided: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  segments: z.array(SegmentSchema).nullable().default([]),
+  border_crossings: z.array(BorderCrossingSchema).nullable().default([]),
   status: TripStatusSchema,
   calculated_taggeld_gross: z.number().nullable(),
   calculated_taggeld_net: z.number().nullable(),

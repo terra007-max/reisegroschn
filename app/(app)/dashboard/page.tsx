@@ -92,11 +92,13 @@ export default async function DashboardPage() {
   const [{ data: profile }, tripsResult] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, ytd_mileage_km, kv_daily_rate")
+      .select("full_name, ytd_mileage_km, kv_daily_rate, role")
       .eq("id", user.id)
       .single(),
     getTrips({ limit: 100 }),
   ]);
+
+  const isAdmin = profile?.role === "ADMIN";
   const trips = tripsResult.success ? tripsResult.data : [];
 
   const ytdMileage = profile?.ytd_mileage_km ?? 0;
@@ -125,6 +127,11 @@ export default async function DashboardPage() {
       sub: `${approvedTrips.length} genehmigt`,
     },
   };
+
+  // Employees see a simplified view without tax details
+  const visibleKpis = isAdmin
+    ? kpiConfig
+    : kpiConfig.filter((k) => k.key !== "taxable");
 
   const recentTrips = [...trips]
     .sort(
@@ -155,8 +162,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── KPI cards ───────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {kpiConfig.map((kpi) => {
+      <div className={cn("grid gap-3 sm:gap-4", isAdmin ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3")}>
+        {visibleKpis.map((kpi) => {
           const Icon = kpi.icon;
           const vals = kpiValues[kpi.key];
           return (

@@ -25,6 +25,9 @@ export const MEAL_DEDUCTION_SINGLE_EUR = 15.0;
 /** Statutory mileage rate for cars per §26 Z 4b EStG */
 export const MILEAGE_RATE_CAR_EUR_PER_KM = 0.5;
 
+/** Additional supplement per passenger (Beifahrerzuschlag) per §26 Z 4b EStG */
+export const MILEAGE_PASSENGER_SUPPLEMENT_EUR_PER_KM = 0.05;
+
 /** Annual mileage cap for tax-free Kilometergeld */
 export const MILEAGE_ANNUAL_CAP_KM = 30_000;
 
@@ -279,6 +282,8 @@ export function calculateTaggeld(input: TaggeldInput): TaggeldResult {
 export interface MileageInput {
   distanceKm: number;
   ytdMileageKm: number;
+  /** Number of passengers in the car — each adds €0.05/km (Beifahrerzuschlag §26 Z 4b EStG) */
+  passengerCount?: number;
 }
 
 export interface MileageResult {
@@ -286,15 +291,20 @@ export interface MileageResult {
   excessKm: number;
   payout: number;
   newYtdMileageKm: number;
+  effectiveRatePerKm: number;
 }
 
 export function calculateMileage(input: MileageInput): MileageResult {
-  const { distanceKm, ytdMileageKm } = input;
+  const { distanceKm, ytdMileageKm, passengerCount = 0 } = input;
+  const passengers = Math.min(Math.max(0, passengerCount), 4);
+  const effectiveRatePerKm = roundCents(
+    MILEAGE_RATE_CAR_EUR_PER_KM + passengers * MILEAGE_PASSENGER_SUPPLEMENT_EUR_PER_KM
+  );
   const remainingCap = Math.max(0, MILEAGE_ANNUAL_CAP_KM - ytdMileageKm);
   const taxFreeKm = Math.min(distanceKm, remainingCap);
   const excessKm = distanceKm - taxFreeKm;
-  const payout = roundCents(taxFreeKm * MILEAGE_RATE_CAR_EUR_PER_KM);
-  return { taxFreeKm, excessKm, payout, newYtdMileageKm: ytdMileageKm + distanceKm };
+  const payout = roundCents(taxFreeKm * effectiveRatePerKm);
+  return { taxFreeKm, excessKm, payout, newYtdMileageKm: ytdMileageKm + distanceKm, effectiveRatePerKm };
 }
 
 // ─── 5/15 Day Rule ────────────────────────────────────────────────────────────
