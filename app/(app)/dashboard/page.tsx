@@ -17,6 +17,7 @@ import {
   ArrowRight,
   MapPin,
   CheckCircle2,
+  FileText,
 } from "lucide-react";
 import { MILEAGE_ANNUAL_CAP_KM } from "@/lib/AustrianTaxCalculator";
 
@@ -161,8 +162,20 @@ export default async function DashboardPage() {
         </LinkButton>
       </div>
 
+      {/* ── Quick actions (mobile-first row) ───────────────── */}
+      <div className="flex gap-2 sm:hidden">
+        <LinkButton href="/trips/new" className="flex-1 gap-1.5 h-11">
+          <PlusCircle className="w-4 h-4" />
+          Neue Reise
+        </LinkButton>
+        <LinkButton href="/trips" variant="outline" className="flex-1 gap-1.5 h-11">
+          <FileText className="w-4 h-4" />
+          Alle Reisen
+        </LinkButton>
+      </div>
+
       {/* ── KPI cards ───────────────────────────────────────── */}
-      <div className={cn("grid gap-3 sm:gap-4", isAdmin ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3")}>
+      <div className={cn("grid gap-3 sm:gap-4", isAdmin ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 sm:grid-cols-3")}>
         {visibleKpis.map((kpi) => {
           const Icon = kpi.icon;
           const vals = kpiValues[kpi.key];
