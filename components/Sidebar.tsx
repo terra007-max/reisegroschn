@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import AppLogo from "@/components/AppLogo";
 
 const navItems = [
   { href: "/dashboard", label: "Übersicht", icon: LayoutDashboard },
@@ -49,20 +50,11 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
   return (
     <aside className="hidden lg:flex w-60 flex-shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo */}
-      <div className="px-5 py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 hero-gradient rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-            <Plane className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <span className="font-bold text-sidebar-foreground text-base leading-none tracking-tight">
-              ReiseGroschn
-            </span>
-            <p className="text-[10px] text-sidebar-foreground/50 leading-none mt-0.5">
-              Reisekostenabrechnung
-            </p>
-          </div>
-        </div>
+      <div className="px-5 py-4">
+        <AppLogo size="sm" />
+        <p className="text-[10px] text-sidebar-foreground/50 leading-none mt-1 ml-10">
+          Reisekostenabrechnung
+        </p>
       </div>
 
       <Separator className="bg-sidebar-border" />

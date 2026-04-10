@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Plane } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import AppLogo from "@/components/AppLogo";
 
 const features = [
   "§ 26 EStG konforme Taggeld-Berechnung",
@@ -58,11 +59,8 @@ export default function LoginPage() {
         />
 
         {/* Logo */}
-        <div className="relative flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center ring-1 ring-white/20">
-            <Plane className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-xl tracking-tight">ReiseGroschn</span>
+        <div className="relative">
+          <AppLogo size="md" light />
         </div>
 
         {/* Hero text */}
@@ -89,18 +87,19 @@ export default function LoginPage() {
         </div>
 
         <div className="relative mt-8">
-          <p className="text-white/40 text-xs">§26 EStG · BAO §131 · BGBL 2024</p>
+          <p className="text-white/40 text-xs">§26 EStG · BAO §131 · BGBL 2026</p>
         </div>
       </div>
 
       {/* ── Right: Login form ──────────────────────────────── */}
       <div className="flex flex-col items-center justify-center p-8 lg:p-12 bg-background">
         {/* Mobile logo */}
-        <div className="flex lg:hidden items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Plane className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-bold text-lg">ReiseGroschn</span>
+        <div className="flex lg:hidden flex-col items-center gap-4 mb-10">
+          <AppLogo size="xl" showWordmark={false} />
+          <p className="font-bold text-2xl tracking-tight">ReiseGroschn</p>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Reisekostenabrechnung für Österreich
+          </p>
         </div>
 
         <div className="w-full max-w-sm space-y-7">
