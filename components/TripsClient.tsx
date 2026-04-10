@@ -8,16 +8,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PlusCircle, Search, MapPin, X } from "lucide-react";
 import type { Trip, TripStatus } from "@/lib/schemas";
+import { useLocale } from "@/contexts/LocaleContext";
 
 type FilterStatus = TripStatus | "ALL";
-
-const FILTER_TABS: { key: FilterStatus; label: string }[] = [
-  { key: "ALL", label: "Alle" },
-  { key: "DRAFT", label: "Entwurf" },
-  { key: "PENDING", label: "Ausstehend" },
-  { key: "APPROVED", label: "Genehmigt" },
-  { key: "REJECTED", label: "Abgelehnt" },
-];
 
 const STATUS_BORDER: Record<TripStatus, string> = {
   DRAFT: "border-l-slate-300",
@@ -78,6 +71,15 @@ interface TripsClientProps {
 export default function TripsClient({ trips }: TripsClientProps) {
   const [filter, setFilter] = useState<FilterStatus>("ALL");
   const [search, setSearch] = useState("");
+  const { tr } = useLocale();
+
+  const FILTER_TABS: { key: FilterStatus; label: string }[] = [
+    { key: "ALL", label: tr("trips.filterAll") },
+    { key: "DRAFT", label: tr("trips.filterDraft") },
+    { key: "PENDING", label: tr("trips.filterPending") },
+    { key: "APPROVED", label: tr("trips.filterApproved") },
+    { key: "REJECTED", label: tr("trips.filterRejected") },
+  ];
 
   const counts = useMemo(() => {
     const c: Record<FilterStatus, number> = { ALL: trips.length, DRAFT: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 };
@@ -139,7 +141,7 @@ export default function TripsClient({ trips }: TripsClientProps) {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Zielort oder Reisezweck suchen…"
+          placeholder={tr("trips.searchPlaceholder")}
           className="pl-9 pr-8 h-10"
         />
         {search && (
@@ -160,18 +162,16 @@ export default function TripsClient({ trips }: TripsClientProps) {
           </div>
           <div>
             <p className="font-semibold">
-              {search ? `Keine Ergebnisse für „${search}"` : "Keine Reisen vorhanden"}
+              {search ? `${tr("trips.noResults")} „${search}"` : tr("trips.noTrips")}
             </p>
             <p className="text-sm text-muted-foreground mt-1">
-              {search
-                ? "Versuchen Sie einen anderen Suchbegriff"
-                : "Beginnen Sie mit der Erfassung Ihrer ersten Dienstreise"}
+              {search ? tr("trips.noResultsHint") : tr("trips.noTripsHint")}
             </p>
           </div>
           {!search && (
             <LinkButton href="/trips/new">
               <PlusCircle className="w-4 h-4 mr-1.5" />
-              Erste Reise erfassen
+              {tr("trips.startFirst")}
             </LinkButton>
           )}
         </div>
@@ -225,7 +225,7 @@ export default function TripsClient({ trips }: TripsClientProps) {
                           <p className="font-bold text-sm text-primary tabular-nums">
                             {formatCurrency(trip.calculated_total_tax_free)}
                           </p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">steuerfrei</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">{tr("trips.taxFree")}</p>
                         </div>
                       </div>
 
@@ -261,7 +261,7 @@ export default function TripsClient({ trips }: TripsClientProps) {
                             <p className="font-bold text-sm text-primary tabular-nums">
                               {formatCurrency(trip.calculated_total_tax_free)}
                             </p>
-                            <p className="text-[10px] text-muted-foreground">steuerfrei</p>
+                            <p className="text-[10px] text-muted-foreground">{tr("trips.taxFree")}</p>
                           </div>
                           <svg
                             className="w-4 h-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors"

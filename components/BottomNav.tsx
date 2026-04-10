@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Plane, Plus, Shield, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Plane, Plus, Shield, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/contexts/LocaleContext";
 
 interface BottomNavProps {
   userRole: string;
@@ -11,36 +12,29 @@ interface BottomNavProps {
 
 export default function BottomNav({ userRole }: BottomNavProps) {
   const pathname = usePathname();
+  const { tr } = useLocale();
   const isAdmin = userRole === "ADMIN";
 
+  // Left: Dashboard + Trips
+  // Center: FAB (New Trip)
+  // Right: Admin/Settings (2 items)
   const leftItems = [
-    { href: "/dashboard", label: "Übersicht", icon: LayoutDashboard },
-    { href: "/trips", label: "Reisen", icon: Plane },
+    { href: "/dashboard", label: tr("nav.overview"), icon: LayoutDashboard },
+    { href: "/trips", label: tr("nav.trips"), icon: Plane },
   ];
 
   const rightItems = isAdmin
     ? [
-        { href: "/admin", label: "Admin", icon: Shield },
-        { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
+        { href: "/admin", label: tr("nav.admin"), icon: Shield },
+        { href: "/settings", label: tr("nav.settings"), icon: Settings },
       ]
     : [
-        { href: "/admin", label: "Admin", icon: Shield, hidden: true }, // placeholder symmetry
-        { href: "/admin/analytics", label: "Analytics", icon: BarChart2, hidden: true },
+        { href: "/settings", label: tr("nav.settings"), icon: Settings },
       ];
-
-  const visibleRight = isAdmin
-    ? rightItems
-    : [
-        { href: "/trips", label: "Reisen", icon: Plane, hidden: true }, // keep symmetry for non-admin
-      ];
-
-  // For non-admin: just left items + FAB + 2 placeholder-less items → use a simpler layout
-  // Non-admin: Dashboard | Trips | [FAB] | (empty) | (empty) → but that looks bad
-  // Better: non-admin has 2 items left, 0 right → center FAB with 1 item each side
 
   function isActive(href: string) {
     if (href === "/dashboard") return pathname === "/dashboard";
-    if (href === "/admin" && !href.includes("analytics")) return pathname === "/admin";
+    if (href === "/admin") return pathname === "/admin";
     return pathname.startsWith(href);
   }
 
@@ -50,7 +44,7 @@ export default function BottomNav({ userRole }: BottomNavProps) {
       aria-label="Navigation"
     >
       <div className="flex items-center justify-around px-2">
-        {/* Left items */}
+        {/* Left */}
         {leftItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -70,12 +64,12 @@ export default function BottomNav({ userRole }: BottomNavProps) {
             "ring-4 ring-card",
             "active:scale-95 transition-transform duration-100"
           )}
-          aria-label="Neue Reise erfassen"
+          aria-label={tr("nav.newTrip")}
         >
           <Plus className="w-6 h-6 text-white" strokeWidth={2.5} />
         </Link>
 
-        {/* Right items */}
+        {/* Right */}
         {isAdmin ? (
           rightItems.map((item) => {
             const Icon = item.icon;
@@ -87,10 +81,17 @@ export default function BottomNav({ userRole }: BottomNavProps) {
             );
           })
         ) : (
-          // Non-admin: fill right side with empty slots for symmetry
           <>
             <div className="flex-1" />
-            <div className="flex-1" />
+            {rightItems.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.href);
+              return (
+                <NavItem key={item.href} href={item.href} label={item.label} active={active}>
+                  <Icon className="w-[22px] h-[22px]" />
+                </NavItem>
+              );
+            })}
           </>
         )}
       </div>
