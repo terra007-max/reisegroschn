@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Upload,
@@ -192,6 +193,7 @@ export default function ReceiptUploader({
   initialReceipts = [],
   disabled = false,
 }: ReceiptUploaderProps) {
+  const router = useRouter();
   const [step, setStep] = useState<UploadStep>({ type: "idle" });
   const [receipts, setReceipts] = useState<SavedReceipt[]>(initialReceipts);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -336,8 +338,7 @@ export default function ReceiptUploader({
         // We can't reconstruct the full ReceiptWithExpenseLine shape here,
         // so refresh will show it. In a real app you'd return it from the action.
         setStep({ type: "idle" });
-        // Trigger a page refresh to show the new receipt
-        window.location.reload();
+        router.refresh();
       } else {
         toast.error("Fehler beim Speichern", { description: result.error });
         setStep({

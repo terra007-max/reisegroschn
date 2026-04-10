@@ -89,13 +89,14 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, ytd_mileage_km, kv_daily_rate")
-    .eq("id", user.id)
-    .single();
-
-  const tripsResult = await getTrips({ limit: 100 });
+  const [{ data: profile }, tripsResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, ytd_mileage_km, kv_daily_rate")
+      .eq("id", user.id)
+      .single(),
+    getTrips({ limit: 100 }),
+  ]);
   const trips = tripsResult.success ? tripsResult.data : [];
 
   const ytdMileage = profile?.ytd_mileage_km ?? 0;

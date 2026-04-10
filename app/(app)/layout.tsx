@@ -15,11 +15,13 @@ export default async function AppLayout({
 
   if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, role")
+      .eq("id", user.id)
+      .single(),
+  ]);
 
   const userName = profile?.full_name ?? user.email ?? "";
   const userRole = profile?.role ?? "USER";

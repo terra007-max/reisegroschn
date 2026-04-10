@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -315,21 +315,27 @@ export default function AdminTripTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isBatchPending, startBatch] = useTransition();
   const [isExporting, startExport] = useTransition();
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
   const pendingTrips = trips.filter((t) => t.status === "PENDING");
 
-  const filtered = trips.filter((t) => {
+  const filtered = useMemo(() => trips.filter((t) => {
     const matchesStatus = filter === "ALL" || t.status === filter;
-    const q = search.toLowerCase();
+    const q = debouncedSearch.toLowerCase();
     const matchesSearch =
       !q ||
       t.destination.toLowerCase().includes(q) ||
       t.profiles?.full_name?.toLowerCase().includes(q) ||
       t.profiles?.email?.toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
-  });
+  }), [trips, filter, debouncedSearch]);
 
   function handleSelect(id: string, checked: boolean) {
     setSelected((prev) => {
