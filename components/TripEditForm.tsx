@@ -15,6 +15,8 @@ import { UpdateTripSchema } from "@/lib/schemas";
 import { INTERNATIONAL_PER_DIEM_RATES } from "@/lib/AustrianTaxCalculator";
 import type { Segment, BorderCrossing, Trip } from "@/lib/schemas";
 import { updateTrip, previewTrip } from "@/actions/trip.actions";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import type { PlaceResult } from "@/components/PlaceAutocomplete";
 import type { Resolver } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -296,6 +298,7 @@ export default function TripEditForm({ trip }: { trip: Trip }) {
   const [crossings, setCrossings] = useState<BorderCrossing[]>(
     (trip.border_crossings as BorderCrossing[] | null) ?? []
   );
+  const [internationalHint, setInternationalHint] = useState<PlaceResult | null>(null);
 
   const {
     register, handleSubmit, watch, setValue, setError,
@@ -383,8 +386,28 @@ export default function TripEditForm({ trip }: { trip: Trip }) {
         {/* Zielort */}
         <div className="space-y-1.5">
           <Label htmlFor="destination">Zielort</Label>
-          <Input id="destination" className="h-10" {...register("destination")} />
+          <PlaceAutocomplete
+            id="destination"
+            value={watch("destination")}
+            error={!!errors.destination}
+            onChange={(val, result) => {
+              setValue("destination", val, { shouldValidate: true });
+              if (result && result.countryCode !== "AT") setInternationalHint(result);
+              else setInternationalHint(null);
+            }}
+          />
           {errors.destination && <p className="text-xs text-destructive">{errors.destination.message}</p>}
+          {internationalHint && (
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200/60 rounded-lg px-3 py-2.5 text-xs text-blue-800">
+              <span className="text-base leading-none flex-shrink-0">
+                {internationalHint.countryCode.replace(/./g, (c) => String.fromCodePoint(c.charCodeAt(0) + 127397))}
+              </span>
+              <span>
+                <strong>Auslandsreise erkannt</strong> — {internationalHint.country}.
+                Grenzübertritt unter „Grenzübertritte" erfassen für korrekte Taggeld-Berechnung.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Abreise / Rückkehr */}

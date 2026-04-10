@@ -14,6 +14,8 @@ import {
 import { CreateTripSchema } from "@/lib/schemas";
 import { INTERNATIONAL_PER_DIEM_RATES } from "@/lib/AustrianTaxCalculator";
 import type { Segment, BorderCrossing } from "@/lib/schemas";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import type { PlaceResult } from "@/components/PlaceAutocomplete";
 
 type TransportMode = "CAR" | "FLIGHT" | "TRAIN" | "BUS" | "OTHER";
 type SegmentType = "TRAVEL" | "WORK";
@@ -482,6 +484,7 @@ export default function TripForm() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [segments, setSegments] = useState<Segment[]>([]);
   const [crossings, setCrossings] = useState<BorderCrossing[]>([]);
+  const [internationalHint, setInternationalHint] = useState<PlaceResult | null>(null);
 
   const {
     register,
@@ -609,18 +612,38 @@ export default function TripForm() {
         {/* Zielort */}
         <div className="space-y-1.5">
           <Label htmlFor="destination">Zielort</Label>
-          <Input
+          <PlaceAutocomplete
             id="destination"
-            placeholder="z.B. Wien, Graz, Linz"
-            className="h-10"
-            {...register("destination")}
+            value={watch("destination")}
+            error={!!errors.destination}
+            onChange={(val, result) => {
+              setValue("destination", val, { shouldValidate: true });
+              if (result && result.countryCode !== "AT") {
+                setInternationalHint(result);
+              } else {
+                setInternationalHint(null);
+              }
+            }}
           />
           {errors.destination && (
             <p className="text-xs text-destructive">{errors.destination.message}</p>
           )}
-          <p className="text-xs text-muted-foreground">
-            Exakter Name wichtig für die 5/15-Tage-Regel
-          </p>
+          {internationalHint && (
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200/60 rounded-lg px-3 py-2.5 text-xs text-blue-800">
+              <span className="text-base leading-none flex-shrink-0">
+                {internationalHint.countryCode.replace(/./g, (c) => String.fromCodePoint(c.charCodeAt(0) + 127397))}
+              </span>
+              <span className="flex-1">
+                <strong>Auslandsreise erkannt</strong> — {internationalHint.country}.
+                Grenzübertritt unter „Grenzübertritte" erfassen für korrekte Taggeld-Berechnung.
+              </span>
+            </div>
+          )}
+          {!internationalHint && (
+            <p className="text-xs text-muted-foreground">
+              Exakter Name wichtig für die 5/15-Tage-Regel
+            </p>
+          )}
         </div>
 
         {/* Abreise / Rückkehr */}
