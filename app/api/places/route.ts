@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     url.searchParams.set("lang", "de");
 
     const res = await fetch(url.toString(), {
-      headers: { "User-Agent": "ReiseGroschen/1.0" },
+      headers: { "User-Agent": "Evodia/1.0" },
       next: { revalidate: 3600 },
     });
 

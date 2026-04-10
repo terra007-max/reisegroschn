@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ReiseGroschn",
-    short_name: "ReiseGroschn",
-    description: "Österreichische Reisekostenabrechnung — §26 EStG konform",
+    name: "Evodia",
+    short_name: "Evodia",
+    description: "Travel expense management for Austria — §26 EStG compliant",
     start_url: "/dashboard",
     display: "standalone",
     orientation: "portrait-primary",

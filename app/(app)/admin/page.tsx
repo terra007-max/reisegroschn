@@ -4,7 +4,7 @@ import { getAdminTrips } from "@/actions/admin.actions";
 import AdminTripTable from "@/components/AdminTripTable";
 import { Shield } from "lucide-react";
 
-export const metadata = { title: "Genehmigungen — ReiseGroschn" };
+export const metadata = { title: "Genehmigungen — Evodia" };
 
 export default async function AdminPage() {
   const supabase = await createClient();

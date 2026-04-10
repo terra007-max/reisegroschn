@@ -305,7 +305,7 @@ export async function exportBmdCsv(filters?: {
     const csv = BOM + [header, ...rows].join("\r\n");
 
     const now = new Date();
-    const filename = `reisegroschn_bmd_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}.csv`;
+    const filename = `evodia_bmd_${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}.csv`;
 
     return { success: true, data: { csv, filename } };
   } catch (err) {

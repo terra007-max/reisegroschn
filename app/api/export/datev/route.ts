@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
   });
 
   const csv = [headers.join(";"), ...rows].join("\r\n");
-  const filename = `ReiseGroschn_DATEV_${year}_${isAdmin ? "alle" : profile?.full_name?.replace(/\s/g, "_") ?? "export"}.csv`;
+  const filename = `Evodia_DATEV_${year}_${isAdmin ? "alle" : profile?.full_name?.replace(/\s/g, "_") ?? "export"}.csv`;
 
   return new NextResponse(csv, {
     status: 200,

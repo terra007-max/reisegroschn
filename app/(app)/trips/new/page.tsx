@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TripForm from "@/components/TripForm";
 
-export const metadata = { title: "Neue Reise — ReiseGroschn" };
+export const metadata = { title: "Neue Reise — Evodia" };
 
 export default async function NewTripPage() {
   const supabase = await createClient();

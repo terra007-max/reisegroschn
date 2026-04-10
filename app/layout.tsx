@@ -20,13 +20,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "ReiseGroschn — Reisekosten",
-  description: "Österreichische Reisekostenabrechnung — §26 EStG konform",
-  applicationName: "ReiseGroschn",
+  title: "Evodia — Reisekosten",
+  description: "Travel expense management for Austria — §26 EStG compliant",
+  applicationName: "Evodia",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "ReiseGroschn",
+    title: "Evodia",
   },
   icons: {
     icon: [

@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { PlusCircle, MapPin, CheckCircle2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Reisen — ReiseGroschn" };
+export const metadata = { title: "Reisen — Evodia" };
 
 function formatCurrency(v: number | null) {
   if (v === null) return "—";

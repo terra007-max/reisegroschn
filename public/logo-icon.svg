@@ -1,46 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
+    <!-- Dark background like Kairos, but with a subtle teal-indigo depth -->
     <linearGradient id="bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#1e3a8a"/>
-      <stop offset="100%" stop-color="#0f766e"/>
+      <stop offset="0%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0f1e2e"/>
     </linearGradient>
-    <linearGradient id="coin" x1="25" y1="22" x2="75" y2="78" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#fcd34d"/>
-      <stop offset="60%" stop-color="#f59e0b"/>
-      <stop offset="100%" stop-color="#d97706"/>
-    </linearGradient>
+    <!-- Subtle inner glow for depth -->
+    <radialGradient id="glow" cx="50%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- Background rounded square -->
+  <!-- Background rounded square (same radius language as Kairos) -->
   <rect width="100" height="100" rx="22" fill="url(#bg)"/>
+  <rect width="100" height="100" rx="22" fill="url(#glow)"/>
 
-  <!-- Subtle glint lines top-left -->
-  <line x1="14" y1="10" x2="28" y2="10" stroke="white" stroke-width="1.2" stroke-opacity="0.12" stroke-linecap="round"/>
-  <line x1="10" y1="15" x2="18" y2="15" stroke="white" stroke-width="1" stroke-opacity="0.08" stroke-linecap="round"/>
+  <!-- Subtle top-right specular glint -->
+  <ellipse cx="72" cy="18" rx="18" ry="8" fill="white" fill-opacity="0.04" transform="rotate(-30 72 18)"/>
 
-  <!-- Coin drop shadow -->
-  <circle cx="50" cy="53" r="32" fill="#000" fill-opacity="0.22"/>
+  <!-- The "E" — clean, geometric, slightly condensed like Kairos K -->
+  <!-- Vertical stroke -->
+  <rect x="30" y="24" width="8" height="52" rx="2" fill="white"/>
+  <!-- Top horizontal -->
+  <rect x="30" y="24" width="36" height="8" rx="2" fill="white"/>
+  <!-- Middle horizontal (slightly shorter — gives elegant asymmetry) -->
+  <rect x="30" y="46" width="30" height="7" rx="2" fill="white"/>
+  <!-- Bottom horizontal -->
+  <rect x="30" y="68" width="36" height="8" rx="2" fill="white"/>
 
-  <!-- Main coin -->
-  <circle cx="50" cy="50" r="32" fill="url(#coin)"/>
-
-  <!-- Coin milled edge (inner ring) -->
-  <circle cx="50" cy="50" r="28.5" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.28"/>
-
-  <!-- Bold "R" — the Reise initial -->
-  <text
-    x="50" y="68"
-    text-anchor="middle"
-    font-family="Georgia, 'Times New Roman', serif"
-    font-size="42"
-    font-weight="700"
-    fill="white"
-    fill-opacity="0.93"
-    letter-spacing="-1"
-  >R</text>
-
-  <!-- Three small route dots at bottom — departure · · · arrival -->
-  <circle cx="24" cy="88" r="2.5" fill="white" fill-opacity="0.35"/>
-  <circle cx="50" cy="88" r="1.8" fill="white" fill-opacity="0.22"/>
-  <circle cx="76" cy="88" r="2.5" fill="white" fill-opacity="0.35"/>
+  <!-- Route dot accent — three dots bottom-right suggesting a journey path -->
+  <circle cx="74" cy="83" r="2.2" fill="white" fill-opacity="0.22"/>
+  <circle cx="80" cy="83" r="2.2" fill="white" fill-opacity="0.14"/>
+  <circle cx="86" cy="83" r="2.2" fill="white" fill-opacity="0.08"/>
 </svg>

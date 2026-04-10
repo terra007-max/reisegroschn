@@ -30,7 +30,7 @@ export default function AppLogo({
     <div className={cn("flex items-center gap-2.5", className)}>
       <Image
         src="/logo-icon.svg"
-        alt="ReiseGroschn"
+        alt="Evodia"
         width={icon}
         height={icon}
         className="flex-shrink-0 drop-shadow-sm"
@@ -44,7 +44,7 @@ export default function AppLogo({
             light ? "text-white" : "text-foreground"
           )}
         >
-          ReiseGroschn
+          Evodia
         </span>
       )}
     </div>

@@ -53,7 +53,7 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
       <div className="px-5 py-4">
         <AppLogo size="sm" />
         <p className="text-[10px] text-sidebar-foreground/50 leading-none mt-1 ml-10">
-          Reisekostenabrechnung
+          Travel expenses
         </p>
       </div>
 
