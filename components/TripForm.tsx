@@ -402,6 +402,7 @@ function CrossingRow({
       <Select
         value={crossing.country_code}
         onValueChange={(v) => {
+          if (!v) return;
           const found = COUNTRY_OPTIONS.find((c) => c.code === v);
           onChange({ ...crossing, country_code: v, country_name: found?.name ?? v });
         }}
@@ -727,7 +728,7 @@ export default function TripForm() {
             </Label>
             <Select
               defaultValue="0"
-              onValueChange={(v) => setValue("passenger_count", parseInt(v, 10))}
+              onValueChange={(v) => v != null && setValue("passenger_count", parseInt(v, 10))}
             >
               <SelectTrigger className="h-10" id="passenger_count">
                 <SelectValue />

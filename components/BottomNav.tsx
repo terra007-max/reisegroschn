@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Plane, PlusCircle, Shield } from "lucide-react";
+import { LayoutDashboard, Plane, PlusCircle, Shield, BarChart2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface BottomNavProps {
@@ -17,7 +17,10 @@ export default function BottomNav({ userRole }: BottomNavProps) {
     { href: "/dashboard", label: "Übersicht", icon: LayoutDashboard },
     { href: "/trips", label: "Reisen", icon: Plane },
     { href: "/trips/new", label: "Neue Reise", icon: PlusCircle },
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
+    ...(isAdmin ? [
+      { href: "/admin", label: "Admin", icon: Shield },
+      { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
+    ] : []),
   ];
 
   return (

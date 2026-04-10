@@ -9,6 +9,7 @@ import {
   LogOut,
   Shield,
   User,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +23,10 @@ const navItems = [
   { href: "/trips/new", label: "Neue Reise", icon: PlusCircle },
 ];
 
-const adminItems = [{ href: "/admin", label: "Genehmigungen", icon: Shield }];
+const adminItems = [
+  { href: "/admin", label: "Genehmigungen", icon: Shield },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart2 },
+];
 
 interface SidebarProps {
   userName: string;

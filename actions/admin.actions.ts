@@ -312,3 +312,142 @@ export async function exportBmdCsv(filters?: {
     return { success: false, error: err instanceof Error ? err.message : "Fehler" };
   }
 }
+
+// ─── ANALYTICS ────────────────────────────────────────────────────────────────
+
+export interface AnalyticsData {
+  kpis: {
+    totalTrips: number;
+    approvedTrips: number;
+    pendingTrips: number;
+    rejectedTrips: number;
+    totalTaxFreeEur: number;
+    totalTaxableEur: number;
+    totalTaggeldEur: number;
+    totalMileageEur: number;
+    totalKm: number;
+  };
+  monthlyTrend: { month: string; taxFree: number; trips: number }[];
+  costBreakdown: { name: string; value: number }[];
+  topDestinations: { destination: string; count: number; totalEur: number }[];
+  topEmployees: { name: string; email: string; trips: number; totalEur: number }[];
+  statusDistribution: { status: string; count: number }[];
+}
+
+export async function getAnalytics(filters?: {
+  fromDate?: string;
+  toDate?: string;
+}): Promise<ActionResult<AnalyticsData>> {
+  try {
+    await requireAdmin();
+    const supabase = await createClient();
+
+    let query = supabase
+      .from("trips")
+      .select(
+        "id, destination, status, start_time, end_time, distance_km, calculated_total_tax_free, calculated_total_taxable, calculated_taggeld_net, calculated_mileage_payout, created_at, approved_at, profiles!trips_user_id_fkey(full_name, email)"
+      )
+      .order("created_at", { ascending: true });
+
+    if (filters?.fromDate) query = query.gte("created_at", filters.fromDate);
+    if (filters?.toDate) query = query.lte("created_at", filters.toDate);
+
+    const { data: trips, error } = await query;
+    if (error || !trips) return { success: false, error: "Daten konnten nicht geladen werden." };
+
+    // ── KPIs ──
+    const approved = trips.filter((t) => t.status === "APPROVED");
+    const pending  = trips.filter((t) => t.status === "PENDING");
+    const rejected = trips.filter((t) => t.status === "REJECTED");
+
+    const sum = (arr: typeof trips, key: "calculated_total_tax_free" | "calculated_total_taxable" | "calculated_taggeld_net" | "calculated_mileage_payout" | "distance_km") =>
+      arr.reduce((acc, t) => acc + ((t[key] as number | null) ?? 0), 0);
+
+    // ── Monthly trend (last 12 months) ──
+    const monthMap = new Map<string, { taxFree: number; trips: number }>();
+    for (const t of trips) {
+      const d = new Date(t.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const existing = monthMap.get(key) ?? { taxFree: 0, trips: 0 };
+      monthMap.set(key, {
+        taxFree: existing.taxFree + ((t.calculated_total_tax_free as number | null) ?? 0),
+        trips: existing.trips + 1,
+      });
+    }
+    const monthlyTrend = Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-12)
+      .map(([month, v]) => ({ month, ...v }));
+
+    // ── Cost breakdown (approved only) ──
+    const taggeld  = sum(approved, "calculated_taggeld_net");
+    const mileage  = sum(approved, "calculated_mileage_payout");
+    const naechtigungsgeld = Math.max(0, sum(approved, "calculated_total_tax_free") - taggeld - mileage);
+    const costBreakdown = [
+      { name: "Taggeld", value: Math.round(taggeld * 100) / 100 },
+      { name: "Kilometergeld", value: Math.round(mileage * 100) / 100 },
+      { name: "Nächtigungsgeld", value: Math.round(naechtigungsgeld * 100) / 100 },
+    ].filter((c) => c.value > 0);
+
+    // ── Top destinations ──
+    const destMap = new Map<string, { count: number; totalEur: number }>();
+    for (const t of trips) {
+      const dest = t.destination;
+      const existing = destMap.get(dest) ?? { count: 0, totalEur: 0 };
+      destMap.set(dest, {
+        count: existing.count + 1,
+        totalEur: existing.totalEur + ((t.calculated_total_tax_free as number | null) ?? 0),
+      });
+    }
+    const topDestinations = Array.from(destMap.entries())
+      .map(([destination, v]) => ({ destination, ...v }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+
+    // ── Top employees ──
+    const empMap = new Map<string, { name: string; trips: number; totalEur: number }>();
+    for (const t of trips) {
+      const prof = t.profiles as unknown as { full_name: string; email: string } | null;
+      const key = prof?.email ?? "unknown";
+      const existing = empMap.get(key) ?? { name: prof?.full_name ?? key, trips: 0, totalEur: 0 };
+      empMap.set(key, {
+        name: prof?.full_name ?? key,
+        trips: existing.trips + 1,
+        totalEur: existing.totalEur + ((t.calculated_total_tax_free as number | null) ?? 0),
+      });
+    }
+    const topEmployees = Array.from(empMap.entries())
+      .map(([email, v]) => ({ email, ...v }))
+      .sort((a, b) => b.totalEur - a.totalEur)
+      .slice(0, 8);
+
+    return {
+      success: true,
+      data: {
+        kpis: {
+          totalTrips: trips.length,
+          approvedTrips: approved.length,
+          pendingTrips: pending.length,
+          rejectedTrips: rejected.length,
+          totalTaxFreeEur: Math.round(sum(approved, "calculated_total_tax_free") * 100) / 100,
+          totalTaxableEur: Math.round(sum(approved, "calculated_total_taxable") * 100) / 100,
+          totalTaggeldEur: Math.round(taggeld * 100) / 100,
+          totalMileageEur: Math.round(mileage * 100) / 100,
+          totalKm: sum(trips, "distance_km"),
+        },
+        monthlyTrend,
+        costBreakdown,
+        topDestinations,
+        topEmployees,
+        statusDistribution: [
+          { status: "Genehmigt", count: approved.length },
+          { status: "Ausstehend", count: pending.length },
+          { status: "Abgelehnt", count: rejected.length },
+          { status: "Entwurf", count: trips.filter((t) => t.status === "DRAFT").length },
+        ],
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Fehler" };
+  }
+}
