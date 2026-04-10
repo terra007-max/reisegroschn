@@ -1,7 +1,7 @@
 /**
  * AustrianTaxCalculator.ts
  *
- * Implements Austrian travel expense (Reisekosten) law for 2025/2026.
+ * Implements Austrian travel expense (Reisekosten) law for 2026.
  * Sources: §26 Z 4 EStG (Taggeld + Nächtigungsgeld), §26 Z 4b EStG
  * (Kilometergeld), §3 Abs 1 Z 16b EStG (Auslandsreisen), BAO §131.
  *
@@ -40,7 +40,7 @@ export const DESTINATION_CONSECUTIVE_DAY_LIMIT = 5;
 /** Annual-day threshold before a destination becomes a secondary workplace */
 export const DESTINATION_ANNUAL_DAY_LIMIT = 15;
 
-// ─── International Per Diem Rates (BMF Erlass 2024/2025) ──────────────────────
+// ─── International Per Diem Rates (BMF Erlass 2026) ──────────────────────────
 // Source: BMF-010222/0055-IV/4/2023 and annual BMF updates.
 // Rates are the statutory 24h tax-free maximum in EUR.
 

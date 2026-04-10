@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback } from "react";
+import { useState, useTransition, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,6 +9,7 @@ import {
   Loader2, Calculator, AlertTriangle, CheckCircle2,
   Euro, Car, Clock, Plus, Trash2, Plane, Train,
   Bus, MapPin, Briefcase, ChevronDown, Users,
+  ArrowRight, ArrowUpRight, ArrowDownLeft, Search, Globe,
 } from "lucide-react";
 
 import { UpdateTripSchema } from "@/lib/schemas";
@@ -48,6 +49,11 @@ function isoToDatetimeLocal(iso: string | null | undefined): string {
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
+
+function countryFlagEmoji(code: string): string {
+  if (!code || code.length !== 2) return "🌍";
+  return code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(c.charCodeAt(0) + 127397));
+}
 
 type TransportMode = "CAR" | "FLIGHT" | "TRAIN" | "BUS" | "OTHER";
 type SegmentType = "TRAVEL" | "WORK";
@@ -229,36 +235,198 @@ function SegmentRow({ seg, onChange, onRemove }: {
   );
 }
 
-function CrossingRow({ crossing, onChange, onRemove }: {
-  crossing: BorderCrossing; onChange: (u: BorderCrossing) => void; onRemove: () => void;
+function CrossingRow({
+  crossing,
+  onChange,
+  onRemove,
+  index,
+}: {
+  crossing: BorderCrossing;
+  onChange: (updated: BorderCrossing) => void;
+  onRemove: () => void;
+  index: number;
 }) {
+  const [countryQuery, setCountryQuery] = useState("");
+  const [countryOpen, setCountryOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedCountry = COUNTRY_OPTIONS.find((c) => c.code === crossing.country_code);
+
+  const filteredCountries = countryQuery.trim().length > 0
+    ? COUNTRY_OPTIONS.filter((c) =>
+        c.name.toLowerCase().includes(countryQuery.toLowerCase()) ||
+        c.code.toLowerCase().includes(countryQuery.toLowerCase())
+      )
+    : COUNTRY_OPTIONS;
+
+  const raw = crossing.crossed_at ? crossing.crossed_at.slice(0, 16) : "";
+  const [datePart, timePart] = raw.includes("T") ? raw.split("T") : [raw, ""];
+
+  function updateDateTime(date: string, time: string) {
+    if (!date) return;
+    onChange({ ...crossing, crossed_at: datetimeLocalToISO(`${date}T${time || "00:00"}`) });
+  }
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setCountryOpen(false);
+        setCountryQuery("");
+      }
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   return (
-    <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/40 border rounded-lg">
-      <Select value={crossing.direction} onValueChange={(v) => onChange({ ...crossing, direction: v as "ENTRY" | "EXIT" })}>
-        <SelectTrigger className="h-8 w-28 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ENTRY">Einreise</SelectItem>
-          <SelectItem value="EXIT">Ausreise</SelectItem>
-        </SelectContent>
-      </Select>
-      <Select value={crossing.country_code} onValueChange={(v) => {
-        if (!v) return;
-        const found = COUNTRY_OPTIONS.find((c) => c.code === v);
-        onChange({ ...crossing, country_code: v, country_name: found?.name ?? v });
-      }}>
-        <SelectTrigger className="h-8 flex-1 min-w-[140px] text-xs"><SelectValue placeholder="Land wählen" /></SelectTrigger>
-        <SelectContent>
-          {COUNTRY_OPTIONS.map((c) => (
-            <SelectItem key={c.code} value={c.code} className="text-xs">{c.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Input type="datetime-local" className="h-8 text-xs flex-1 min-w-[160px]"
-        value={crossing.crossed_at?.slice(0, 16) ?? ""}
-        onChange={(e) => onChange({ ...crossing, crossed_at: datetimeLocalToISO(e.target.value) })} />
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive" onClick={onRemove}>
-        <Trash2 className="w-3.5 h-3.5" />
-      </Button>
+    <div className="rounded-xl border bg-card shadow-sm overflow-visible">
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-muted/30 border-b">
+        <span className="text-xl leading-none flex-shrink-0" aria-hidden>
+          {selectedCountry ? countryFlagEmoji(crossing.country_code) : "🌍"}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-tight">
+            {crossing.direction === "ENTRY" ? "Einreise" : "Ausreise"}
+            {selectedCountry ? ` · ${selectedCountry.name}` : ""}
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+            {crossing.direction === "ENTRY" ? "Ich betrete ein neues Land" : "Ich verlasse das aktuelle Land"}
+          </p>
+        </div>
+        <Button type="button" variant="ghost" size="icon"
+          className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+          onClick={onRemove} aria-label="Grenzübertritt entfernen">
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+
+      <div className="p-4 space-y-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Richtung</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(["ENTRY", "EXIT"] as const).map((dir) => (
+              <button key={dir} type="button" onClick={() => onChange({ ...crossing, direction: dir })}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg border py-2 px-3 text-xs font-medium transition-all",
+                  crossing.direction === dir
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-background text-muted-foreground hover:bg-muted/50 border-border"
+                )}>
+                {dir === "ENTRY"
+                  ? <ArrowDownLeft className="w-3.5 h-3.5 flex-shrink-0" />
+                  : <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />}
+                {dir === "ENTRY" ? "Einreise" : "Ausreise"}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {crossing.direction === "ENTRY"
+              ? "Einreise: du betrittst das unten gewählte Land (z.B. Deutschland)"
+              : "Ausreise: du verlässt das unten gewählte Land (z.B. Österreich)"}
+          </p>
+        </div>
+
+        <div className="space-y-1.5" ref={containerRef}>
+          <Label className="text-xs text-muted-foreground">Land</Label>
+          <div className="relative">
+            <button type="button" onClick={() => setCountryOpen((o) => !o)}
+              className={cn(
+                "w-full flex items-center gap-2 h-10 px-3 rounded-md border bg-background text-sm text-left transition-colors",
+                "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                "hover:bg-muted/30",
+                !selectedCountry && "text-muted-foreground"
+              )}>
+              {selectedCountry ? (
+                <>
+                  <span className="text-base leading-none flex-shrink-0">{countryFlagEmoji(crossing.country_code)}</span>
+                  <span className="flex-1 truncate">{selectedCountry.name}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded flex-shrink-0">{crossing.country_code}</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span>Land auswählen…</span>
+                </>
+              )}
+            </button>
+
+            {countryOpen && (
+              <div className="absolute z-50 top-full mt-1.5 left-0 right-0 bg-popover border rounded-xl shadow-xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-100">
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                    <Input autoFocus placeholder="Land suchen…" value={countryQuery}
+                      onChange={(e) => setCountryQuery(e.target.value)} className="h-8 pl-8 text-sm" />
+                  </div>
+                </div>
+                <div className="max-h-52 overflow-y-auto">
+                  {filteredCountries.length === 0 ? (
+                    <p className="px-3 py-3 text-xs text-muted-foreground text-center">Kein Ergebnis für „{countryQuery}"</p>
+                  ) : filteredCountries.map((c, i) => (
+                    <button key={c.code} type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        onChange({ ...crossing, country_code: c.code, country_name: c.name });
+                        setCountryOpen(false);
+                        setCountryQuery("");
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors",
+                        crossing.country_code === c.code ? "bg-primary/10 font-medium" : "hover:bg-muted/60",
+                        i > 0 && "border-t border-border/30"
+                      )}>
+                      <span className="text-base leading-none w-6 flex-shrink-0">{countryFlagEmoji(c.code)}</span>
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground flex-shrink-0">{c.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Datum</Label>
+            <Input type="date" className="h-9 text-sm" value={datePart}
+              onChange={(e) => updateDateTime(e.target.value, timePart)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Uhrzeit</Label>
+            <Input type="time" className="h-9 text-sm" value={timePart}
+              onChange={(e) => updateDateTime(datePart, e.target.value)} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RouteViz({ crossings }: { crossings: BorderCrossing[] }) {
+  if (crossings.length === 0) return null;
+  const sorted = [...crossings].sort((a, b) => (a.crossed_at || "").localeCompare(b.crossed_at || ""));
+  const stops: string[] = ["AT"];
+  for (const c of sorted) {
+    if (c.direction === "ENTRY" && c.country_code) stops.push(c.country_code);
+  }
+  const deduped = stops.filter((s, i) => i === 0 || s !== stops[i - 1]);
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap py-1">
+      {deduped.map((code, i) => (
+        <div key={`${code}-${i}`} className="flex items-center gap-1.5">
+          {i > 0 && <ArrowRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+          <span className={cn(
+            "flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium border",
+            code === "AT"
+              ? "bg-primary/10 border-primary/20 text-primary"
+              : "bg-muted border-border text-foreground"
+          )}>
+            <span className="text-sm leading-none">{countryFlagEmoji(code)}</span>
+            <span className="font-mono">{code}</span>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -447,9 +615,39 @@ export default function TripEditForm({ trip }: { trip: Trip }) {
 
         {/* Grenzübertritte */}
         <Section title="Grenzübertritte (Ausland)" badge={crossings.length} defaultOpen={crossings.length > 0}>
-          <div className="space-y-2">
-            {crossings.map((c) => (
-              <CrossingRow key={c.id} crossing={c}
+          <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 rounded-lg px-3 py-2.5">
+            <Globe className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
+              <p className="font-medium">Warum ist das wichtig?</p>
+              <p className="text-amber-700 dark:text-amber-400">
+                Der genaue Zeitpunkt des Grenzübertritts bestimmt, welches Taggeld gilt — österreichisch (€30/Tag) oder das jeweilige Auslandssatz (BMF-Erlass).
+              </p>
+            </div>
+          </div>
+
+          {crossings.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Route</p>
+              <RouteViz crossings={crossings} />
+            </div>
+          )}
+
+          {internationalHint && crossings.length === 0 && (
+            <button type="button"
+              onClick={() => setCrossings([
+                { id: uid(), country_code: "AT", country_name: "Österreich", crossed_at: "", direction: "EXIT" },
+                { id: uid(), country_code: internationalHint.countryCode, country_name: internationalHint.country, crossed_at: "", direction: "ENTRY" },
+              ])}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 text-sm text-primary hover:bg-primary/10 transition-colors">
+              <span className="text-base leading-none">{countryFlagEmoji(internationalHint.countryCode)}</span>
+              <span className="font-medium">Auto-fill für {internationalHint.country}</span>
+              <span className="text-xs text-primary/70 ml-auto">AT → {internationalHint.countryCode} vorausfüllen</span>
+            </button>
+          )}
+
+          <div className="space-y-3">
+            {crossings.map((c, i) => (
+              <CrossingRow key={c.id} index={i} crossing={c}
                 onChange={(u) => setCrossings((p) => p.map((x) => x.id === c.id ? u : x))}
                 onRemove={() => setCrossings((p) => p.filter((x) => x.id !== c.id))} />
             ))}
