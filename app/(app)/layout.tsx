@@ -4,6 +4,7 @@ import { getLocale } from "@/lib/locale-server";
 import { LocaleProvider } from "@/contexts/LocaleContext";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 export default async function AppLayout({
   children,
@@ -40,6 +41,7 @@ export default async function AppLayout({
         </main>
         <BottomNav userRole={userRole} />
       </div>
+      <PWAInstallPrompt />
     </LocaleProvider>
   );
 }

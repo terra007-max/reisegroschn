@@ -341,6 +341,13 @@ export const translations = {
       editTripTitle: "Reise bearbeiten",
       back: "Zurück",
     },
+    // PWA install prompt
+    pwa: {
+      title: "App installieren",
+      description: "Evodia als App auf Ihrem Gerät installieren — schneller Zugriff, auch offline.",
+      install: "Installieren",
+      later: "Später",
+    },
   },
 
   en: {
@@ -659,6 +666,13 @@ export const translations = {
       newTripSubtitle: "Automatic calculation pursuant to §26 Z 4 EStG",
       editTripTitle: "Edit trip",
       back: "Back",
+    },
+    // PWA install prompt
+    pwa: {
+      title: "Install app",
+      description: "Install Evodia on your device — quick access, even offline.",
+      install: "Install",
+      later: "Later",
     },
   },
 } as const;
