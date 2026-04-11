@@ -997,7 +997,7 @@ export default function TripForm() {
               <SelectTrigger className="h-10" id="passenger_count">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 <SelectItem value="0">{tr("form.noPassenger")}</SelectItem>
                 <SelectItem value="1">{tr("form.passenger1")}</SelectItem>
                 <SelectItem value="2">{tr("form.passenger2")}</SelectItem>
@@ -1025,7 +1025,7 @@ export default function TripForm() {
             <SelectTrigger className="h-10">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-max">
               <SelectItem value="0">{tr("form.meals0")}</SelectItem>
               <SelectItem value="1">{tr("form.meals1")}</SelectItem>
               <SelectItem value="2">{tr("form.meals2")}</SelectItem>

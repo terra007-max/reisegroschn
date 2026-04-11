@@ -677,7 +677,7 @@ export default function TripEditForm({ trip }: { trip: Trip }) {
             <Select defaultValue={String(trip.passenger_count ?? 0)}
               onValueChange={(v) => v != null && setValue("passenger_count", parseInt(v, 10))}>
               <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-max">
                 <SelectItem value="0">{tr("form.noPassenger")}</SelectItem>
                 <SelectItem value="1">{tr("form.passenger1")}</SelectItem>
                 <SelectItem value="2">{tr("form.passenger2")}</SelectItem>
@@ -699,7 +699,7 @@ export default function TripEditForm({ trip }: { trip: Trip }) {
           <Select defaultValue={String(trip.meals_provided ?? 0)}
             onValueChange={(v) => v != null && setValue("meals_provided", parseInt(v, 10) as 0 | 1 | 2)}>
             <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-max">
               <SelectItem value="0">{tr("form.meals0")}</SelectItem>
               <SelectItem value="1">{tr("form.meals1")}</SelectItem>
               <SelectItem value="2">{tr("form.meals2")}</SelectItem>
