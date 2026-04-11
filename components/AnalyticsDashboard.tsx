@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { getAnalytics, type AnalyticsData } from "@/actions/admin.actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,24 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  Euro, TrendingUp, Car, CheckCircle2, Clock, XCircle,
+  Euro, TrendingUp, Car, CheckCircle2, Clock,
   Loader2, BarChart2, Download, Users, MapPin,
 } from "lucide-react";
+import { useLocale } from "@/contexts/LocaleContext";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PIE_COLORS = ["#16a34a", "#2563eb", "#d97706", "#7c3aed"];
 
 type FilterKey = "WEEK" | "MONTH" | "LAST_MONTH" | "Q3M" | "YEAR" | "CUSTOM";
-
-const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
-  { key: "WEEK",       label: "Woche" },
-  { key: "MONTH",      label: "Monat" },
-  { key: "LAST_MONTH", label: "Letzter Monat" },
-  { key: "Q3M",        label: "3 Monate" },
-  { key: "YEAR",       label: "Jahr" },
-  { key: "CUSTOM",     label: "Benutzerdefiniert" },
-];
 
 function getDateRange(key: FilterKey, customFrom?: string, customTo?: string): { fromDate: string; toDate: string } {
   const now = new Date();
@@ -37,12 +29,11 @@ function getDateRange(key: FilterKey, customFrom?: string, customTo?: string): {
       const from = new Date(now); from.setDate(now.getDate() - 7);
       return { fromDate: from.toISOString(), toDate: now.toISOString() };
     }
-    case "MONTH": {
+    case "MONTH":
       return {
         fromDate: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
         toDate: now.toISOString(),
       };
-    }
     case "LAST_MONTH": {
       const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const end   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
@@ -73,23 +64,18 @@ const formatEur = (v: number) =>
 const formatEurFull = (v: number) =>
   new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" }).format(v);
 
-const formatMonth = (key: string) => {
+function formatMonth(key: string, locale: string) {
   const [y, m] = key.split("-");
-  return new Intl.DateTimeFormat("de-AT", { month: "short", year: "2-digit" }).format(
-    new Date(parseInt(y), parseInt(m) - 1, 1)
-  );
-};
+  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "de-AT", {
+    month: "short",
+    year: "2-digit",
+  }).format(new Date(parseInt(y), parseInt(m) - 1, 1));
+}
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  color,
-  bg,
-  border,
+  icon: Icon, label, value, sub, color, bg, border,
 }: {
   icon: React.ElementType;
   label: string;
@@ -113,9 +99,13 @@ function KpiCard({
   );
 }
 
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
+// ─── Tooltips ─────────────────────────────────────────────────────────────────
 
-function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+function EurTooltip({ active, payload, label }: {
+  active?: boolean;
+  payload?: { name: string; value: number; color: string }[];
+  label?: string;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-background border rounded-lg shadow-lg p-3 text-xs space-y-1 min-w-[140px]">
@@ -126,11 +116,29 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
             <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
             {p.name}
           </span>
-          <span className="font-medium tabular-nums">
-            {typeof p.value === "number" && p.name !== "Reisen"
-              ? formatEurFull(p.value)
-              : p.value}
+          <span className="font-medium tabular-nums">{formatEurFull(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CountTooltip({ active, payload, label }: {
+  active?: boolean;
+  payload?: { name: string; value: number; color: string }[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-background border rounded-lg shadow-lg p-3 text-xs space-y-1 min-w-[120px]">
+      {label && <p className="font-semibold text-foreground mb-2">{label}</p>}
+      {payload.map((p) => (
+        <div key={p.name} className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full inline-block" style={{ background: p.color }} />
+            {p.name}
           </span>
+          <span className="font-medium tabular-nums">{p.value}</span>
         </div>
       ))}
     </div>
@@ -139,16 +147,37 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function AnalyticsDashboard({
-  initialData,
-}: {
-  initialData: AnalyticsData | null;
-}) {
+export default function AnalyticsDashboard({ initialData }: { initialData: AnalyticsData | null }) {
+  const { locale, tr } = useLocale();
   const [data, setData] = useState<AnalyticsData | null>(initialData);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("YEAR");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [isPending, startTransition] = useTransition();
+
+  const FILTER_OPTIONS: { key: FilterKey; label: string }[] = [
+    { key: "WEEK",       label: tr("analytics.filterWeek") },
+    { key: "MONTH",      label: tr("analytics.filterMonth") },
+    { key: "LAST_MONTH", label: tr("analytics.filterLastMonth") },
+    { key: "Q3M",        label: tr("analytics.filterQ3m") },
+    { key: "YEAR",       label: tr("analytics.filterYear") },
+    { key: "CUSTOM",     label: tr("analytics.filterCustom") },
+  ];
+
+  // Map raw cost-breakdown keys → translated display names
+  const costNames: Record<string, string> = {
+    TAGGELD:          tr("analytics.costTaggeld"),
+    KILOMETERGELD:    tr("analytics.costMileage"),
+    NAECHTIGUNGSGELD: tr("analytics.costOvernight"),
+  };
+
+  // Map raw status keys → translated labels + bar colors
+  const statusMeta: Record<string, { label: string; color: string }> = {
+    APPROVED: { label: tr("status.APPROVED"), color: "bg-emerald-500" },
+    PENDING:  { label: tr("status.PENDING"),  color: "bg-amber-400" },
+    REJECTED: { label: tr("status.REJECTED"), color: "bg-red-400" },
+    DRAFT:    { label: tr("status.DRAFT"),    color: "bg-muted-foreground/30" },
+  };
 
   function applyFilter(key: FilterKey, from?: string, to?: string) {
     setActiveFilter(key);
@@ -162,8 +191,12 @@ export default function AnalyticsDashboard({
   function exportCsv() {
     if (!data) return;
     const rows = [
-      ["Monat", "Erstattung (€)", "Reisen"],
-      ...data.monthlyTrend.map((r) => [formatMonth(r.month), r.taxFree.toFixed(2), String(r.trips)]),
+      [tr("analytics.csvColMonth"), tr("analytics.csvColReimbursement"), tr("analytics.csvColTrips")],
+      ...data.monthlyTrend.map((r) => [
+        formatMonth(r.month, locale),
+        r.taxFree.toFixed(2),
+        String(r.trips),
+      ]),
     ];
     const csv = "\uFEFF" + rows.map((r) => r.join(";")).join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -175,6 +208,16 @@ export default function AnalyticsDashboard({
 
   const kpis = data?.kpis;
 
+  const trendData = data?.monthlyTrend.map((d) => ({
+    ...d,
+    month: formatMonth(d.month, locale),
+  }));
+
+  const translatedCostBreakdown = data?.costBreakdown.map((c) => ({
+    ...c,
+    name: costNames[c.name] ?? c.name,
+  }));
+
   return (
     <div className="space-y-6">
       {/* ── Header ── */}
@@ -182,12 +225,12 @@ export default function AnalyticsDashboard({
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-primary" />
-            Analytics
+            {tr("analytics.title")}
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Reisekostenauswertung für HR & Management</p>
+          <p className="text-muted-foreground text-sm mt-0.5">{tr("analytics.subtitle")}</p>
         </div>
         <Button variant="outline" size="sm" className="h-9 gap-2" onClick={exportCsv} disabled={!data}>
-          <Download className="w-4 h-4" /> CSV Export
+          <Download className="w-4 h-4" /> {tr("analytics.csvExport")}
         </Button>
       </div>
 
@@ -235,31 +278,57 @@ export default function AnalyticsDashboard({
 
       {!data ? (
         <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Daten werden geladen…
+          <Loader2 className="w-5 h-5 animate-spin mr-2" /> {tr("analytics.loading")}
         </div>
       ) : (
         <>
           {/* ── KPI row ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard icon={CheckCircle2} label="Genehmigt" value={String(kpis!.approvedTrips)} sub={`von ${kpis!.totalTrips} gesamt`} color="text-emerald-600" bg="bg-emerald-50" border="border-l-emerald-500" />
-            <KpiCard icon={Euro} label="Steuerfrei gesamt" value={formatEur(kpis!.totalTaxFreeEur)} sub="§26 EStG" color="text-primary" bg="bg-primary/5" border="border-l-primary" />
-            <KpiCard icon={Car} label="Gefahrene km" value={kpis!.totalKm.toLocaleString("de-AT")} sub={`€ ${kpis!.totalMileageEur.toFixed(0)} Kilometergeld`} color="text-blue-600" bg="bg-blue-50" border="border-l-blue-500" />
-            <KpiCard icon={Clock} label="Ausstehend" value={String(kpis!.pendingTrips)} sub={kpis!.rejectedTrips > 0 ? `${kpis!.rejectedTrips} abgelehnt` : undefined} color="text-amber-600" bg="bg-amber-50" border="border-l-amber-500" />
+            <KpiCard
+              icon={CheckCircle2}
+              label={tr("analytics.kpiApproved")}
+              value={String(kpis!.approvedTrips)}
+              sub={tr("analytics.kpiApprovedSub").replace("{total}", String(kpis!.totalTrips))}
+              color="text-emerald-600" bg="bg-emerald-50" border="border-l-emerald-500"
+            />
+            <KpiCard
+              icon={Euro}
+              label={tr("analytics.kpiTaxFree")}
+              value={formatEur(kpis!.totalTaxFreeEur)}
+              sub="§26 EStG"
+              color="text-primary" bg="bg-primary/5" border="border-l-primary"
+            />
+            <KpiCard
+              icon={Car}
+              label={tr("analytics.kpiKm")}
+              value={kpis!.totalKm.toLocaleString(locale === "en" ? "en-GB" : "de-AT")}
+              sub={`€ ${kpis!.totalMileageEur.toFixed(0)} ${tr("analytics.kpiKmSub")}`}
+              color="text-blue-600" bg="bg-blue-50" border="border-l-blue-500"
+            />
+            <KpiCard
+              icon={Clock}
+              label={tr("analytics.kpiPending")}
+              value={String(kpis!.pendingTrips)}
+              sub={kpis!.rejectedTrips > 0
+                ? tr("analytics.kpiRejectedSub").replace("{count}", String(kpis!.rejectedTrips))
+                : undefined}
+              color="text-amber-600" bg="bg-amber-50" border="border-l-amber-500"
+            />
           </div>
 
           {/* ── Charts row ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Monthly trend — spans 2 cols */}
+            {/* Monthly trend */}
             <Card className="card-shadow lg:col-span-2">
               <CardHeader className="pb-2 pt-4 px-5">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
-                  Monatliche Erstattungen
+                  {tr("analytics.chartMonthly")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 pb-4">
                 <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={data.monthlyTrend.map((d) => ({ ...d, month: formatMonth(d.month) }))} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <AreaChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="taxFreeGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
@@ -269,8 +338,8 @@ export default function AnalyticsDashboard({
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `€${v}`} width={55} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="taxFree" name="Erstattung" stroke="#16a34a" strokeWidth={2} fill="url(#taxFreeGrad)" />
+                    <Tooltip content={<EurTooltip />} />
+                    <Area type="monotone" dataKey="taxFree" name={tr("analytics.seriesReimbursement")} stroke="#16a34a" strokeWidth={2} fill="url(#taxFreeGrad)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -281,26 +350,26 @@ export default function AnalyticsDashboard({
               <CardHeader className="pb-2 pt-4 px-5">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Euro className="w-4 h-4 text-primary" />
-                  Kostenverteilung
+                  {tr("analytics.chartCosts")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 pb-4">
-                {data.costBreakdown.length === 0 ? (
+                {!translatedCostBreakdown?.length ? (
                   <div className="flex items-center justify-center h-[220px] text-sm text-muted-foreground">
-                    Keine genehmigten Reisen
+                    {tr("analytics.chartNoCosts")}
                   </div>
                 ) : (
                   <>
                     <ResponsiveContainer width="100%" height={160}>
                       <PieChart>
                         <Pie
-                          data={data.costBreakdown}
+                          data={translatedCostBreakdown}
                           cx="50%" cy="50%"
                           innerRadius={45} outerRadius={70}
                           paddingAngle={3}
                           dataKey="value"
                         >
-                          {data.costBreakdown.map((_, i) => (
+                          {translatedCostBreakdown.map((_, i) => (
                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                           ))}
                         </Pie>
@@ -308,7 +377,7 @@ export default function AnalyticsDashboard({
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="space-y-1.5 mt-1 px-3">
-                      {data.costBreakdown.map((c, i) => (
+                      {translatedCostBreakdown.map((c, i) => (
                         <div key={c.name} className="flex items-center justify-between text-xs">
                           <span className="flex items-center gap-1.5">
                             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: PIE_COLORS[i % PIE_COLORS.length] }} />
@@ -330,17 +399,17 @@ export default function AnalyticsDashboard({
               <CardHeader className="pb-2 pt-4 px-5">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <BarChart2 className="w-4 h-4 text-primary" />
-                  Reisen pro Monat
+                  {tr("analytics.chartTripsPerMonth")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-2 pb-4">
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={data.monthlyTrend.map((d) => ({ ...d, month: formatMonth(d.month) }))} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                  <BarChart data={trendData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={30} />
-                    <Tooltip content={<ChartTooltip />} />
-                    <Bar dataKey="trips" name="Reisen" fill="#16a34a" radius={[3, 3, 0, 0]} maxBarSize={32} />
+                    <Tooltip content={<CountTooltip />} />
+                    <Bar dataKey="trips" name={tr("analytics.seriesTrips")} fill="#16a34a" radius={[3, 3, 0, 0]} maxBarSize={32} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -349,23 +418,20 @@ export default function AnalyticsDashboard({
             {/* Status distribution */}
             <Card className="card-shadow">
               <CardHeader className="pb-2 pt-4 px-5">
-                <CardTitle className="text-sm font-semibold">Status</CardTitle>
+                <CardTitle className="text-sm font-semibold">{tr("analytics.chartStatus")}</CardTitle>
               </CardHeader>
               <CardContent className="px-5 pb-4 space-y-3">
                 {data.statusDistribution.map((s) => {
                   const pct = kpis!.totalTrips > 0 ? (s.count / kpis!.totalTrips) * 100 : 0;
-                  const color = s.status === "Genehmigt" ? "bg-emerald-500"
-                    : s.status === "Ausstehend" ? "bg-amber-400"
-                    : s.status === "Abgelehnt" ? "bg-red-400"
-                    : "bg-muted-foreground/30";
+                  const meta = statusMeta[s.status] ?? { label: s.status, color: "bg-muted-foreground/30" };
                   return (
                     <div key={s.status} className="space-y-1">
                       <div className="flex justify-between text-xs">
-                        <span className="text-muted-foreground">{s.status}</span>
+                        <span className="text-muted-foreground">{meta.label}</span>
                         <span className="font-medium tabular-nums">{s.count}</span>
                       </div>
                       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
+                        <div className={cn("h-full rounded-full transition-all", meta.color)} style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   );
@@ -381,19 +447,19 @@ export default function AnalyticsDashboard({
               <CardHeader className="pb-2 pt-4 px-5">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-primary" />
-                  Top Reiseziele
+                  {tr("analytics.tableDestinations")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-0 pb-2">
                 {data.topDestinations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-5 py-4">Keine Daten</p>
+                  <p className="text-sm text-muted-foreground px-5 py-4">{tr("analytics.noData")}</p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left px-5 py-2 text-muted-foreground font-medium">Zielort</th>
-                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">Reisen</th>
-                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">Gesamt</th>
+                        <th className="text-left px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colDestination")}</th>
+                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colTrips")}</th>
+                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colTotal")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -415,19 +481,19 @@ export default function AnalyticsDashboard({
               <CardHeader className="pb-2 pt-4 px-5">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" />
-                  Mitarbeiter nach Erstattung
+                  {tr("analytics.tableEmployees")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-0 pb-2">
                 {data.topEmployees.length === 0 ? (
-                  <p className="text-sm text-muted-foreground px-5 py-4">Keine Daten</p>
+                  <p className="text-sm text-muted-foreground px-5 py-4">{tr("analytics.noData")}</p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left px-5 py-2 text-muted-foreground font-medium">Mitarbeiter</th>
-                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">Reisen</th>
-                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">Gesamt</th>
+                        <th className="text-left px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colEmployee")}</th>
+                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colTrips")}</th>
+                        <th className="text-right px-5 py-2 text-muted-foreground font-medium">{tr("analytics.colTotal")}</th>
                       </tr>
                     </thead>
                     <tbody>

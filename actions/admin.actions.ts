@@ -384,9 +384,9 @@ export async function getAnalytics(filters?: {
     const mileage  = sum(approved, "calculated_mileage_payout");
     const naechtigungsgeld = Math.max(0, sum(approved, "calculated_total_tax_free") - taggeld - mileage);
     const costBreakdown = [
-      { name: "Taggeld", value: Math.round(taggeld * 100) / 100 },
-      { name: "Kilometergeld", value: Math.round(mileage * 100) / 100 },
-      { name: "Nächtigungsgeld", value: Math.round(naechtigungsgeld * 100) / 100 },
+      { name: "TAGGELD", value: Math.round(taggeld * 100) / 100 },
+      { name: "KILOMETERGELD", value: Math.round(mileage * 100) / 100 },
+      { name: "NAECHTIGUNGSGELD", value: Math.round(naechtigungsgeld * 100) / 100 },
     ].filter((c) => c.value > 0);
 
     // ── Top destinations ──
@@ -440,10 +440,10 @@ export async function getAnalytics(filters?: {
         topDestinations,
         topEmployees,
         statusDistribution: [
-          { status: "Genehmigt", count: approved.length },
-          { status: "Ausstehend", count: pending.length },
-          { status: "Abgelehnt", count: rejected.length },
-          { status: "Entwurf", count: trips.filter((t) => t.status === "DRAFT").length },
+          { status: "APPROVED", count: approved.length },
+          { status: "PENDING", count: pending.length },
+          { status: "REJECTED", count: rejected.length },
+          { status: "DRAFT", count: trips.filter((t) => t.status === "DRAFT").length },
         ],
       },
     };
