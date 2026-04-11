@@ -23,16 +23,16 @@ import { MILEAGE_ANNUAL_CAP_KM } from "@/lib/AustrianTaxCalculator";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/translations";
 
-function formatCurrency(amount: number | null) {
+function formatCurrency(amount: number | null, locale: string) {
   if (amount === null) return "—";
-  return new Intl.NumberFormat("de-AT", {
+  return new Intl.NumberFormat(locale === "en" ? "en-GB" : "de-AT", {
     style: "currency",
     currency: "EUR",
   }).format(amount);
 }
 
-function formatDate(iso: string) {
-  return new Intl.DateTimeFormat("de-AT", {
+function formatDate(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "de-AT", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -121,8 +121,8 @@ export default async function DashboardPage() {
   );
 
   const kpiValues: Record<string, { value: string; sub?: string }> = {
-    taxFree: { value: formatCurrency(totalTaxFree) },
-    taxable: { value: formatCurrency(totalTaxable) },
+    taxFree: { value: formatCurrency(totalTaxFree, locale) },
+    taxable: { value: formatCurrency(totalTaxable, locale) },
     pending: {
       value: String(pendingTrips.length),
       sub: `${approvedTrips.length} ${t(locale, "kpi.approved")}`,
@@ -224,9 +224,9 @@ export default async function DashboardPage() {
               </span>
             </CardTitle>
             <span className="text-sm font-semibold tabular-nums text-foreground">
-              {ytdMileage.toLocaleString("de-AT")} /{" "}
+              {ytdMileage.toLocaleString(locale === "en" ? "en-GB" : "de-AT")} /{" "}
               <span className="text-muted-foreground font-normal">
-                {MILEAGE_ANNUAL_CAP_KM.toLocaleString("de-AT")} km
+                {MILEAGE_ANNUAL_CAP_KM.toLocaleString(locale === "en" ? "en-GB" : "de-AT")} km
               </span>
             </span>
           </div>
@@ -241,7 +241,7 @@ export default async function DashboardPage() {
           />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>
-              {(MILEAGE_ANNUAL_CAP_KM - ytdMileage).toLocaleString("de-AT")} {t(locale, "dashboard.remaining")}
+              {(MILEAGE_ANNUAL_CAP_KM - ytdMileage).toLocaleString(locale === "en" ? "en-GB" : "de-AT")} {t(locale, "dashboard.remaining")}
             </span>
             <span
               className={cn(
@@ -340,7 +340,7 @@ export default async function DashboardPage() {
                         <StatusBadge status={trip.status} />
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(trip.start_time)} ·{" "}
+                        {formatDate(trip.start_time, locale)} ·{" "}
                         {formatDuration(trip.start_time, trip.end_time)} ·{" "}
                         {trip.distance_km} km
                       </p>
@@ -349,7 +349,7 @@ export default async function DashboardPage() {
                     {/* Amount */}
                     <div className="text-right ml-2 flex-shrink-0">
                       <p className="font-bold text-sm text-primary tabular-nums">
-                        {formatCurrency(trip.calculated_total_tax_free)}
+                        {formatCurrency(trip.calculated_total_tax_free, locale)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{t(locale, "dashboard.taxFreeLabel")}</p>
                     </div>

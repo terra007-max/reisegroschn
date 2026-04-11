@@ -62,6 +62,7 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
 
   function toggleLocale() {
     setLocale(locale === "de" ? "en" : "de");
+    router.refresh();
   }
 
   return (

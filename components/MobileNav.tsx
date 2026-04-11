@@ -261,7 +261,7 @@ export default function MobileNav({ userName, userRole }: MobileNavProps) {
               )}
             </button>
             <button
-              onClick={() => setLocale(locale === "de" ? "en" : "de")}
+              onClick={() => { setLocale(locale === "de" ? "en" : "de"); router.refresh(); }}
               title={locale === "de" ? "Switch to English" : "Zu Deutsch wechseln"}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/40 transition-colors"
             >
