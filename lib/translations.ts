@@ -349,6 +349,8 @@ export const translations = {
       description: "Evodia als App auf Ihrem Gerät installieren — schneller Zugriff, auch offline.",
       install: "Installieren",
       later: "Später",
+      iosHint: "Tippe auf",
+      iosThen: "und dann \u201EZum Home-Bildschirm\u201C",
     },
     // Analytics dashboard
     analytics: {
@@ -717,6 +719,8 @@ export const translations = {
       description: "Install Evodia on your device — quick access, even offline.",
       install: "Install",
       later: "Later",
+      iosHint: "Tap",
+      iosThen: "then \u201CAdd to Home Screen\u201D",
     },
     // Analytics dashboard
     analytics: {

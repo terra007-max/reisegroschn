@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, Share, X } from "lucide-react";
 import { useLocale } from "@/contexts/LocaleContext";
 import AppLogo from "@/components/AppLogo";
 import { cn } from "@/lib/utils";
@@ -14,33 +14,46 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+type PromptMode = "android" | "ios" | null;
+
 export default function PWAInstallPrompt() {
   const { tr } = useLocale();
+  const [mode, setMode] = useState<PromptMode>(null);
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Don't show if already running as installed PWA
+    // Already installed as PWA — do nothing
     if (window.matchMedia("(display-mode: standalone)").matches) return;
 
-    // Don't show if dismissed recently
+    // Dismissed recently — do nothing
     const dismissedUntil = localStorage.getItem(DISMISSED_KEY);
     if (dismissedUntil && Date.now() < Number(dismissedUntil)) return;
 
+    // Register service worker (required for Android install criteria)
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" });
+    }
+
+    // iOS Safari: no beforeinstallprompt — show manual instructions
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as { MSStream?: unknown }).MSStream;
+    if (isIOS) {
+      setMode("ios");
+      return;
+    }
+
+    // Android / Chrome / Edge: listen for native prompt event
     const handler = (e: Event) => {
       e.preventDefault();
       setPromptEvent(e as BeforeInstallPromptEvent);
-      setVisible(true);
+      setMode("android");
     };
-
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   function dismiss() {
-    setVisible(false);
-    const until = Date.now() + DISMISS_DAYS * 24 * 60 * 60 * 1000;
-    localStorage.setItem(DISMISSED_KEY, String(until));
+    setMode(null);
+    localStorage.setItem(DISMISSED_KEY, String(Date.now() + DISMISS_DAYS * 864e5));
   }
 
   async function install() {
@@ -48,13 +61,13 @@ export default function PWAInstallPrompt() {
     await promptEvent.prompt();
     const { outcome } = await promptEvent.userChoice;
     if (outcome === "accepted") {
-      setVisible(false);
+      setMode(null);
     } else {
       dismiss();
     }
   }
 
-  if (!visible) return null;
+  if (!mode) return null;
 
   return (
     <div
@@ -73,23 +86,33 @@ export default function PWAInstallPrompt() {
         <p className="text-sm font-semibold text-foreground leading-tight">
           {tr("pwa.title")}
         </p>
-        <p className="text-xs text-muted-foreground leading-snug mt-0.5 line-clamp-2">
-          {tr("pwa.description")}
-        </p>
+        {mode === "ios" ? (
+          <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+            {tr("pwa.iosHint")}{" "}
+            <Share className="w-3 h-3 inline-block align-[-1px] mx-0.5" />
+            {" "}{tr("pwa.iosThen")}
+          </p>
+        ) : (
+          <p className="text-xs text-muted-foreground leading-snug mt-0.5 line-clamp-2">
+            {tr("pwa.description")}
+          </p>
+        )}
       </div>
 
-      <button
-        onClick={install}
-        className={cn(
-          "flex items-center gap-1.5 px-3 py-1.5 rounded-xl",
-          "bg-primary text-primary-foreground text-xs font-semibold",
-          "active:scale-95 transition-transform shrink-0"
-        )}
-        aria-label={tr("pwa.install")}
-      >
-        <Download className="w-3.5 h-3.5" />
-        {tr("pwa.install")}
-      </button>
+      {mode === "android" && (
+        <button
+          onClick={install}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-xl shrink-0",
+            "bg-primary text-primary-foreground text-xs font-semibold",
+            "active:scale-95 transition-transform"
+          )}
+          aria-label={tr("pwa.install")}
+        >
+          <Download className="w-3.5 h-3.5" />
+          {tr("pwa.install")}
+        </button>
+      )}
 
       <button
         onClick={dismiss}

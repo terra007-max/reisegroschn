@@ -12,6 +12,13 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "private, no-store" }],
       },
       {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+        ],
+      },
+      {
         source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
