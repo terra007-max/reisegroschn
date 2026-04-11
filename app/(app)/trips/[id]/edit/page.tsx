@@ -6,6 +6,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getLocale } from "@/lib/locale-server";
+import { t } from "@/lib/translations";
 
 export default async function TripEditPage({
   params,
@@ -17,7 +19,7 @@ export default async function TripEditPage({
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const result = await getTripById(id);
+  const [result, locale] = await Promise.all([getTripById(id), getLocale()]);
   if (!result.success) notFound();
 
   const trip = result.data;
@@ -33,12 +35,12 @@ export default async function TripEditPage({
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5 -ml-2")}
         >
           <ArrowLeft className="w-4 h-4" />
-          Zurück
+          {t(locale, "page.back")}
         </Link>
       </div>
 
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Reise bearbeiten</h1>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t(locale, "page.editTripTitle")}</h1>
         <p className="text-muted-foreground text-sm mt-0.5">{trip.destination}</p>
       </div>
 

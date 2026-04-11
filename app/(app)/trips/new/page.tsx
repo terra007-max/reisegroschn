@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TripForm from "@/components/TripForm";
+import { getLocale } from "@/lib/locale-server";
+import { t } from "@/lib/translations";
 
 export const metadata = { title: "Neue Reise — Evodia" };
 
@@ -11,14 +13,16 @@ export default async function NewTripPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const locale = await getLocale();
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-          Neue Reise erfassen
+          {t(locale, "page.newTripTitle")}
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">
-          Automatische Berechnung gemäß §26 Z 4 EStG
+          {t(locale, "page.newTripSubtitle")}
         </p>
       </div>
       <TripForm />

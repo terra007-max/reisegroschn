@@ -647,6 +647,7 @@ export async function previewTrip(rawInput: unknown): Promise<
     const mileage = calculateMileage({
       distanceKm: input.distance_km,
       ytdMileageKm: profile.ytd_mileage_km,
+      passengerCount: input.passenger_count ?? 0,
     });
 
     return {

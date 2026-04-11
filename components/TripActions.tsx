@@ -7,9 +7,11 @@ import { Loader2, Send, Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { submitTrip, deleteTrip } from "@/actions/trip.actions";
 import type { Trip } from "@/lib/schemas";
+import { useLocale } from "@/contexts/LocaleContext";
 
 export default function TripActions({ trip }: { trip: Trip }) {
   const router = useRouter();
+  const { tr } = useLocale();
   const [isPending, startTransition] = useTransition();
 
   if (!["DRAFT", "PENDING"].includes(trip.status)) return null;
@@ -18,12 +20,12 @@ export default function TripActions({ trip }: { trip: Trip }) {
     startTransition(async () => {
       const result = await submitTrip(trip.id);
       if (result.success) {
-        toast.success("Reise eingereicht", {
-          description: "Die Reise wurde zur Genehmigung übermittelt.",
+        toast.success(tr("actions.submitted"), {
+          description: tr("actions.submittedDesc"),
         });
         router.refresh();
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("actions.error"), { description: result.error });
       }
     });
   }
@@ -31,7 +33,7 @@ export default function TripActions({ trip }: { trip: Trip }) {
   function handleDelete() {
     if (
       !confirm(
-        `Reise nach "${trip.destination}" wirklich löschen?`
+        `${tr("actions.deleteConfirmPrefix")} "${trip.destination}" ${tr("actions.deleteConfirmSuffix")}`
       )
     )
       return;
@@ -39,10 +41,10 @@ export default function TripActions({ trip }: { trip: Trip }) {
     startTransition(async () => {
       const result = await deleteTrip(trip.id);
       if (result.success) {
-        toast.success("Reise gelöscht");
+        toast.success(tr("actions.tripDeleted"));
         router.push("/trips");
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("actions.error"), { description: result.error });
       }
     });
   }
@@ -58,7 +60,7 @@ export default function TripActions({ trip }: { trip: Trip }) {
             disabled={isPending}
           >
             <Pencil className="w-3.5 h-3.5 mr-1.5" />
-            Bearbeiten
+            {tr("actions.edit")}
           </Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending}>
             {isPending ? (
@@ -66,7 +68,7 @@ export default function TripActions({ trip }: { trip: Trip }) {
             ) : (
               <Send className="w-3.5 h-3.5 mr-1.5" />
             )}
-            Einreichen
+            {tr("actions.submit")}
           </Button>
           <Button
             variant="ghost"
@@ -81,7 +83,7 @@ export default function TripActions({ trip }: { trip: Trip }) {
       )}
       {trip.status === "PENDING" && (
         <p className="text-sm text-muted-foreground italic self-center">
-          Warten auf Genehmigung…
+          {tr("actions.waitingApproval")}
         </p>
       )}
     </div>

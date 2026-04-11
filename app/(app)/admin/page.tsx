@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminTrips } from "@/actions/admin.actions";
 import AdminTripTable from "@/components/AdminTripTable";
 import { Shield } from "lucide-react";
+import { getLocale } from "@/lib/locale-server";
+import { t } from "@/lib/translations";
 
 export const metadata = { title: "Genehmigungen — Evodia" };
 
@@ -24,7 +26,7 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const result = await getAdminTrips();
+  const [result, locale] = await Promise.all([getAdminTrips(), getLocale()]);
   const trips = result.success ? result.data : [];
 
   return (
@@ -34,9 +36,9 @@ export default async function AdminPage() {
           <Shield className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Reisekostengenehmigung</h1>
+          <h1 className="text-2xl font-bold">{t(locale, "admin.title")}</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            Reisen prüfen, genehmigen oder ablehnen · BMD-Export
+            {t(locale, "admin.subtitle")}
           </p>
         </div>
       </div>

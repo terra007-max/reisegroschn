@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/contexts/LocaleContext";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ function RejectDialog({
   onClose: () => void;
   onRejected: (id: string) => void;
 }) {
+  const { tr } = useLocale();
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -69,12 +71,12 @@ function RejectDialog({
     startTransition(async () => {
       const result = await rejectTrip(trip.id, reason);
       if (result.success) {
-        toast.success("Reise abgelehnt");
+        toast.success(tr("admin.rejected"));
         onRejected(trip.id);
         onClose();
         setReason("");
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("admin.error"), { description: result.error });
       }
     });
   }
@@ -83,16 +85,16 @@ function RejectDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Reise ablehnen</DialogTitle>
+          <DialogTitle>{tr("admin.rejectDialogTitle")}</DialogTitle>
           <DialogDescription>
             {trip.destination} — {trip.profiles?.full_name}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">Ablehnungsgrund *</label>
+            <label className="text-sm font-medium">{tr("admin.rejectReasonLabel")}</label>
             <Input
-              placeholder="z.B. Belege fehlen, Betrag zu hoch…"
+              placeholder={tr("admin.rejectReasonPlaceholder")}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               autoFocus
@@ -100,7 +102,7 @@ function RejectDialog({
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose} disabled={isPending}>
-              Abbrechen
+              {tr("admin.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -108,7 +110,7 @@ function RejectDialog({
               disabled={isPending || !reason.trim()}
             >
               {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Ablehnen
+              {tr("admin.reject")}
             </Button>
           </div>
         </div>
@@ -132,6 +134,7 @@ function TripRow({
   onApproved: (id: string) => void;
   onRejected: (id: string) => void;
 }) {
+  const { tr } = useLocale();
   const [expanded, setExpanded] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -140,12 +143,12 @@ function TripRow({
     startTransition(async () => {
       const result = await approveTrip(trip.id);
       if (result.success) {
-        toast.success("Reise genehmigt", {
+        toast.success(tr("admin.approved"), {
           description: `${trip.destination} — ${trip.profiles?.full_name}`,
         });
         onApproved(trip.id);
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("admin.error"), { description: result.error });
       }
     });
   }
@@ -169,7 +172,7 @@ function TripRow({
               className="w-4 h-4 rounded accent-primary flex-shrink-0"
               checked={selected}
               onChange={(e) => onSelect(trip.id, e.target.checked)}
-              aria-label={`Reise ${trip.destination} auswählen`}
+              aria-label={tr("admin.tripSelectedAriaLabel").replace("{dest}", trip.destination)}
             />
           ) : (
             <div className="w-4 flex-shrink-0" />
@@ -200,7 +203,7 @@ function TripRow({
             </p>
             {(trip.calculated_total_taxable ?? 0) > 0 && (
               <p className="text-xs text-muted-foreground">
-                +{formatCurrency(trip.calculated_total_taxable)} stpfl.
+                +{formatCurrency(trip.calculated_total_taxable)} {tr("admin.taxableSuffix")}
               </p>
             )}
           </div>
@@ -219,7 +222,7 @@ function TripRow({
                   onClick={handleApprove}
                   disabled={isPending}
                   className="h-7 px-2 text-xs"
-                  title="Genehmigen"
+                  title={tr("admin.approve")}
                 >
                   {isPending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -233,7 +236,7 @@ function TripRow({
                   onClick={() => setRejectOpen(true)}
                   disabled={isPending}
                   className="h-7 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                  title="Ablehnen"
+                  title={tr("admin.reject")}
                 >
                   <XCircle className="w-3.5 h-3.5" />
                 </Button>
@@ -244,7 +247,7 @@ function TripRow({
               variant="ghost"
               onClick={() => setExpanded((v) => !v)}
               className="h-7 px-2"
-              title={expanded ? "Zuklappen" : "Details"}
+              title={expanded ? tr("admin.collapse") : tr("admin.details")}
             >
               {expanded ? (
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -259,30 +262,30 @@ function TripRow({
         {expanded && (
           <div className="border-t px-4 py-3 grid grid-cols-4 gap-3 text-xs bg-muted/20">
             <div>
-              <p className="text-muted-foreground">Taggeld</p>
+              <p className="text-muted-foreground">{tr("admin.perDiemLabel")}</p>
               <p className="font-medium">{formatCurrency(trip.calculated_taggeld_net)}</p>
             </div>
             <div>
-              <p className="text-muted-foreground">Kilometergeld</p>
+              <p className="text-muted-foreground">{tr("admin.mileageLabel")}</p>
               <p className="font-medium">
                 {formatCurrency(trip.calculated_mileage_payout)} ({trip.distance_km} km)
               </p>
             </div>
             <div>
-              <p className="text-muted-foreground">Mahlzeiten</p>
+              <p className="text-muted-foreground">{tr("admin.mealsLabel")}</p>
               <p className="font-medium">
-                {["Keine", "1", "2+"][trip.meals_provided]}
+                {[tr("admin.meals0"), tr("admin.meals1"), tr("admin.meals2")][trip.meals_provided]}
               </p>
             </div>
             <div>
-              <p className="text-muted-foreground">KV-Satz</p>
+              <p className="text-muted-foreground">{tr("admin.kvRateLabel")}</p>
               <p className="font-medium">
                 €{Number(trip.profiles?.kv_daily_rate ?? 30).toFixed(2)}/Tag
               </p>
             </div>
             {trip.is_secondary_workplace && (
               <div className="col-span-4 text-amber-700 bg-amber-50 rounded px-2 py-1">
-                Tätigkeitsmittelpunkt — Taggeld €0 (5/15-Tage-Regel)
+                {tr("admin.secondaryWorkplaceNote")}
               </div>
             )}
             {trip.notes && (
@@ -311,6 +314,7 @@ export default function AdminTripTable({
 }: {
   initialTrips: AdminTrip[];
 }) {
+  const { tr } = useLocale();
   const [trips, setTrips] = useState<AdminTrip[]>(initialTrips);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("PENDING");
@@ -390,9 +394,9 @@ export default function AdminTripTable({
       const result = await approveTripsBatch(ids);
       if (result.success) {
         toast.success(
-          `${result.data.approved} ${result.data.approved === 1 ? "Reise" : "Reisen"} genehmigt`,
+          `${result.data.approved} ${result.data.approved === 1 ? tr("admin.tripSingular") : tr("admin.tripPlural")} ${tr("admin.approved").toLowerCase()}`,
           result.data.failed > 0
-            ? { description: `${result.data.failed} konnten nicht genehmigt werden.` }
+            ? { description: `${result.data.failed} ${tr("admin.cannotApprove")}` }
             : undefined
         );
         setTrips((prev) =>
@@ -404,7 +408,7 @@ export default function AdminTripTable({
         );
         setSelected(new Set());
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("admin.error"), { description: result.error });
       }
     });
   }
@@ -422,11 +426,11 @@ export default function AdminTripTable({
         a.download = result.data.filename;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("BMD-Export heruntergeladen", {
+        toast.success(tr("admin.exportDownloaded"), {
           description: result.data.filename,
         });
       } else {
-        toast.error("Export fehlgeschlagen", { description: result.error });
+        toast.error(tr("admin.exportFailed"), { description: result.error });
       }
     });
   }
@@ -449,10 +453,10 @@ export default function AdminTripTable({
       {/* Stat chips */}
       <div className="flex gap-3 flex-wrap">
         {[
-          { key: "ALL", label: "Alle", count: trips.length },
-          { key: "PENDING", label: "Ausstehend", count: stats.pending, color: "text-amber-700 bg-amber-50 border-amber-200" },
-          { key: "APPROVED", label: "Genehmigt", count: stats.approved, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
-          { key: "REJECTED", label: "Abgelehnt", count: stats.rejected, color: "text-red-700 bg-red-50 border-red-200" },
+          { key: "ALL", label: tr("admin.filterAll"), count: trips.length },
+          { key: "PENDING", label: tr("admin.filterPending"), count: stats.pending, color: "text-amber-700 bg-amber-50 border-amber-200" },
+          { key: "APPROVED", label: tr("admin.filterApproved"), count: stats.approved, color: "text-emerald-700 bg-emerald-50 border-emerald-200" },
+          { key: "REJECTED", label: tr("admin.filterRejected"), count: stats.rejected, color: "text-red-700 bg-red-50 border-red-200" },
         ].map(({ key, label, count, color }) => (
           <button
             key={key}
@@ -480,7 +484,7 @@ export default function AdminTripTable({
         <div className="relative flex-1 max-w-xs">
           <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
-            placeholder="Mitarbeiter oder Zielort…"
+            placeholder={tr("admin.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-8 text-sm"
@@ -500,7 +504,7 @@ export default function AdminTripTable({
               ) : (
                 <CheckCircle2 className="w-3.5 h-3.5" />
               )}
-              {selected.size} genehmigen
+              {selected.size} {tr("admin.approveSelected")}
             </Button>
           )}
           <Button
@@ -515,7 +519,7 @@ export default function AdminTripTable({
             ) : (
               <Download className="w-3.5 h-3.5" />
             )}
-            BMD-Export
+            {tr("admin.exportBmd")}
           </Button>
         </div>
       </div>
@@ -527,8 +531,8 @@ export default function AdminTripTable({
             <Users className="w-8 h-8 opacity-20" />
             <p className="text-sm">
               {filter === "PENDING"
-                ? "Keine ausstehenden Reisen"
-                : "Keine Einträge gefunden"}
+                ? tr("admin.noPendingTrips")
+                : tr("admin.noEntries")}
             </p>
           </CardContent>
         </Card>
@@ -542,12 +546,12 @@ export default function AdminTripTable({
                 className="w-4 h-4 rounded accent-primary"
                 checked={allPendingSelected}
                 onChange={(e) => handleSelectAll(e.target.checked)}
-                aria-label="Alle auswählen"
+                aria-label={tr("admin.selectAllAriaLabel")}
               />
-              <span>Alle ausstehenden auswählen</span>
+              <span>{tr("admin.selectAllPending")}</span>
               {selected.size > 0 && (
                 <span className="text-primary font-medium">
-                  {selected.size} ausgewählt
+                  {selected.size} {tr("admin.selected")}
                 </span>
               )}
             </div>
@@ -570,9 +574,9 @@ export default function AdminTripTable({
 
       {/* Summary */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{filtered.length} Einträge</span>
+        <span>{filtered.length} {tr("admin.entries")}</span>
         <span>
-          Gesamt genehmigt:{" "}
+          {tr("admin.totalApproved")}{" "}
           <strong className="text-foreground">
             {new Intl.NumberFormat("de-AT", {
               style: "currency",

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import AppLogo from "@/components/AppLogo";
 import { useLocale } from "@/contexts/LocaleContext";
 import type { Locale } from "@/lib/translations";
+import NewTripButton from "@/components/NewTripButton";
 
 interface SidebarProps {
   userName: string;
@@ -69,7 +70,7 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
       <div className="px-5 py-4">
         <AppLogo size="sm" />
         <p className="text-[10px] text-sidebar-foreground/50 leading-none mt-1 ml-10">
-          Travel expenses
+          {tr("nav.tagline")}
         </p>
       </div>
 
@@ -82,19 +83,19 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+              : item.href === "/trips/new"
+              ? pathname === "/trips/new"
+              : pathname.startsWith(item.href) && !pathname.startsWith("/trips/new");
 
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative",
-                isActive
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
-              )}
-            >
+          const itemClass = cn(
+            "group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative w-full text-left",
+            isActive
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/60 hover:bg-sidebar-accent/40 hover:text-sidebar-foreground"
+          );
+
+          const content = (
+            <>
               {isActive && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-sidebar-primary rounded-full" />
               )}
@@ -107,6 +108,20 @@ export default function Sidebar({ userName, userRole }: SidebarProps) {
                 )}
               />
               {item.label}
+            </>
+          );
+
+          if (item.href === "/trips/new") {
+            return (
+              <NewTripButton key={item.href} className={itemClass}>
+                {content}
+              </NewTripButton>
+            );
+          }
+
+          return (
+            <Link key={item.href} href={item.href} className={itemClass}>
+              {content}
             </Link>
           );
         })}

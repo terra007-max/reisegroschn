@@ -17,6 +17,7 @@ import { INTERNATIONAL_PER_DIEM_RATES } from "@/lib/AustrianTaxCalculator";
 import type { Segment, BorderCrossing } from "@/lib/schemas";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import type { PlaceResult } from "@/components/PlaceAutocomplete";
+import { useLocale } from "@/contexts/LocaleContext";
 
 type TransportMode = "CAR" | "FLIGHT" | "TRAIN" | "BUS" | "OTHER";
 type SegmentType = "TRAVEL" | "WORK";
@@ -68,12 +69,8 @@ function countryFlagEmoji(code: string): string {
   return code.toUpperCase().replace(/./g, (c) => String.fromCodePoint(c.charCodeAt(0) + 127397));
 }
 
-const TRANSPORT_LABELS: Record<TransportMode, { label: string; Icon: React.ElementType }> = {
-  CAR:    { label: "Auto",    Icon: Car },
-  FLIGHT: { label: "Flug",   Icon: Plane },
-  TRAIN:  { label: "Zug",    Icon: Train },
-  BUS:    { label: "Bus",    Icon: Bus },
-  OTHER:  { label: "Sonstig",Icon: MapPin },
+const TRANSPORT_ICONS: Record<TransportMode, React.ElementType> = {
+  CAR: Car, FLIGHT: Plane, TRAIN: Train, BUS: Bus, OTHER: MapPin,
 };
 
 const COUNTRY_OPTIONS = Object.entries(INTERNATIONAL_PER_DIEM_RATES)
@@ -106,12 +103,14 @@ function formatHours(h: number) {
 }
 
 function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loading: boolean }) {
+  const { tr } = useLocale();
+
   if (loading) {
     return (
       <Card className="border-dashed card-shadow">
         <CardContent className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-sm">Berechne…</span>
+          <span className="text-sm">{tr("form.calculating")}</span>
         </CardContent>
       </Card>
     );
@@ -123,18 +122,18 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
         <CardContent className="pt-5 space-y-4">
           <div className="flex items-center gap-1.5">
             <Calculator className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold">Gesetzliche Sätze 2026</span>
+            <span className="text-sm font-semibold">{tr("form.legalRates")}</span>
           </div>
           <Separator />
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Taggeld (§26 Z 4 EStG)
+              {tr("form.perDiem")}
             </p>
             <div className="space-y-1.5">
               {[
-                { label: "Unter 3 Stunden", value: "€ 0,00" },
-                { label: "3 – 12 Stunden",  value: "€ 2,50/h" },
-                { label: "Über 12 Stunden", value: "€ 30,00" },
+                { label: tr("form.under3h"), value: "€ 0,00" },
+                { label: tr("form.threeToTwelveH"), value: "€ 2,50/h" },
+                { label: tr("form.over12h"), value: "€ 30,00" },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{row.label}</span>
@@ -146,23 +145,23 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
           <Separator />
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Kilometergeld (§26 Z 4b EStG)
+              {tr("form.mileageSection")}
             </p>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground flex items-center gap-1.5">
-                <Car className="w-3.5 h-3.5" /> bis 30.000 km/Jahr
+                <Car className="w-3.5 h-3.5" /> {tr("form.upTo30000km")}
               </span>
               <span className="tabular-nums font-medium">€ 0,50 / km</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" /> + Beifahrer
+                <Users className="w-3.5 h-3.5" /> {tr("form.plusPassenger")}
               </span>
               <span className="tabular-nums font-medium">+ € 0,05 / km</span>
             </div>
           </div>
           <div className="text-[11px] text-muted-foreground bg-muted/60 rounded-lg px-3 py-2 leading-relaxed">
-            Zielort und Zeiten eingeben für Ihre persönliche Berechnung.
+            {tr("form.enterDataHint")}
           </div>
         </CardContent>
       </Card>
@@ -174,7 +173,7 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
       <CardContent className="pt-5 space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold flex items-center gap-1.5">
-            <Calculator className="w-4 h-4 text-primary" /> Berechnung
+            <Calculator className="w-4 h-4 text-primary" /> {tr("form.calculation")}
           </span>
           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             <Clock className="w-3 h-3 inline mr-1" />{formatHours(preview.durationInHours)}
@@ -183,32 +182,32 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
         <Separator />
         <div className="space-y-2">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Taggeld (§26 Z 4 EStG)
+            {tr("form.perDiem")}
           </p>
           {preview.isSecondaryWorkplace ? (
             <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg p-3 text-xs">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span>Tätigkeitsmittelpunkt — Taggeld €0 (5/15-Tage-Regel)</span>
+              <span>{tr("form.secondaryWorkplace")}</span>
             </div>
           ) : !preview.triggersTaggeld ? (
             <div className="flex items-center gap-2 text-muted-foreground bg-muted rounded-lg p-3 text-xs">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>Unter 3 Stunden — kein Taggeld-Anspruch</span>
+              <span>{tr("form.under3hNoPerDiem")}</span>
             </div>
           ) : (
             <div className="space-y-1.5">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Brutto</span>
+                <span className="text-muted-foreground">{tr("form.gross")}</span>
                 <span className="tabular-nums">{formatEur(preview.taggeldGross)}</span>
               </div>
               {preview.taggeldGross !== preview.taggeldNet && (
                 <div className="flex justify-between text-sm text-destructive">
-                  <span>Mahlzeitenkürzung</span>
+                  <span>{tr("form.mealDeduction")}</span>
                   <span className="tabular-nums">− {formatEur(preview.taggeldGross - preview.taggeldNet)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-semibold">
-                <span>Netto Taggeld</span>
+                <span>{tr("form.netPerDiem")}</span>
                 <span className="text-primary tabular-nums">{formatEur(preview.taggeldNet)}</span>
               </div>
             </div>
@@ -219,11 +218,11 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
             <Separator />
             <div className="space-y-1.5">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Nächtigungsgeld (§26 Z 4 EStG)
+                {tr("form.overnightSection")}
               </p>
               <div className="flex justify-between text-sm font-semibold">
                 <span className="text-muted-foreground">
-                  {preview.overnightStays} Nacht{preview.overnightStays > 1 ? "nächte" : ""} × €17
+                  {preview.overnightStays} {preview.overnightStays > 1 ? tr("form.overnightNights") : tr("form.overnightNight")} × €17
                 </span>
                 <span className="text-primary tabular-nums">{formatEur(preview.naechtigungsgeld)}</span>
               </div>
@@ -233,7 +232,7 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
         <Separator />
         <div className="space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Kilometergeld
+            {tr("form.mileageLabel")}
           </p>
           <div className="flex justify-between text-sm font-semibold">
             <span className="flex items-center gap-1.5">
@@ -246,13 +245,13 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
         <div className="space-y-1.5">
           <div className="flex justify-between font-bold text-base">
             <span className="flex items-center gap-1.5">
-              <Euro className="w-4 h-4 text-primary" /> Gesamt steuerfrei
+              <Euro className="w-4 h-4 text-primary" /> {tr("form.totalTaxFree")}
             </span>
             <span className="text-primary tabular-nums">{formatEur(preview.totalTaxFree)}</span>
           </div>
           {preview.totalTaxable > 0 && (
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Steuerpflichtig (KV-Überschuss)</span>
+              <span>{tr("form.taxableExcess")}</span>
               <span className="tabular-nums">{formatEur(preview.totalTaxable)}</span>
             </div>
           )}
@@ -260,7 +259,7 @@ function PreviewPanel({ preview, loading }: { preview: PreviewData | null; loadi
         {preview.totalTaxFree > 0 && (
           <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200/50 rounded-lg p-2.5 text-xs">
             <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>§26 Z 4 EStG — steuer- und sozialversicherungsfrei</span>
+            <span>{tr("form.taxFreeBadge")}</span>
           </div>
         )}
       </CardContent>
@@ -279,8 +278,9 @@ function SegmentRow({
   onChange: (updated: Segment) => void;
   onRemove: () => void;
 }) {
+  const { tr } = useLocale();
   const isWork = seg.type === "WORK";
-  const Icon = seg.transport ? TRANSPORT_LABELS[seg.transport as TransportMode]?.Icon ?? MapPin : Briefcase;
+  const Icon = seg.transport ? (TRANSPORT_ICONS[seg.transport as TransportMode] ?? MapPin) : Briefcase;
 
   return (
     <div className="flex flex-col sm:flex-row gap-2 p-3 bg-muted/40 border rounded-lg">
@@ -303,12 +303,12 @@ function SegmentRow({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="CAR">Auto</SelectItem>
-            <SelectItem value="FLIGHT">Flug</SelectItem>
-            <SelectItem value="TRAIN">Zug</SelectItem>
-            <SelectItem value="BUS">Bus</SelectItem>
-            <SelectItem value="OTHER">Sonstig</SelectItem>
-            <SelectItem value="WORK">Arbeitszeit</SelectItem>
+            <SelectItem value="CAR">{tr("form.transportCar")}</SelectItem>
+            <SelectItem value="FLIGHT">{tr("form.transportFlight")}</SelectItem>
+            <SelectItem value="TRAIN">{tr("form.transportTrain")}</SelectItem>
+            <SelectItem value="BUS">{tr("form.transportBus")}</SelectItem>
+            <SelectItem value="OTHER">{tr("form.transportOther")}</SelectItem>
+            <SelectItem value="WORK">{tr("form.workTime")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -318,7 +318,7 @@ function SegmentRow({
         {isWork ? (
           <>
             <Input
-              placeholder="Ort / Veranstaltung"
+              placeholder={tr("form.workPlaceholder")}
               className="h-8 text-xs flex-1 min-w-[120px]"
               value={seg.description ?? ""}
               onChange={(e) => onChange({ ...seg, description: e.target.value })}
@@ -327,14 +327,14 @@ function SegmentRow({
         ) : (
           <>
             <Input
-              placeholder="Von"
+              placeholder={tr("form.fromPlaceholder")}
               className="h-8 text-xs w-24"
               value={seg.from ?? ""}
               onChange={(e) => onChange({ ...seg, from: e.target.value })}
             />
             <span className="text-muted-foreground text-xs">→</span>
             <Input
-              placeholder="Nach"
+              placeholder={tr("form.toPlaceholder")}
               className="h-8 text-xs w-24"
               value={seg.to ?? ""}
               onChange={(e) => onChange({ ...seg, to: e.target.value })}
@@ -395,6 +395,7 @@ function CrossingRow({
   onRemove: () => void;
   index: number;
 }) {
+  const { tr } = useLocale();
   const [countryQuery, setCountryQuery] = useState("");
   const [countryOpen, setCountryOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -437,13 +438,11 @@ function CrossingRow({
         </span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold leading-tight">
-            {crossing.direction === "ENTRY" ? "Einreise" : "Ausreise"}
+            {crossing.direction === "ENTRY" ? tr("form.entry") : tr("form.exit")}
             {selectedCountry ? ` · ${selectedCountry.name}` : ""}
           </p>
           <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-            {crossing.direction === "ENTRY"
-              ? "Ich betrete ein neues Land"
-              : "Ich verlasse das aktuelle Land"}
+            {crossing.direction === "ENTRY" ? tr("form.entryDesc") : tr("form.exitDesc")}
           </p>
         </div>
         <Button
@@ -452,7 +451,7 @@ function CrossingRow({
           size="icon"
           className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
           onClick={onRemove}
-          aria-label="Grenzübertritt entfernen"
+          aria-label={tr("form.removeCrossing")}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </Button>
@@ -462,7 +461,7 @@ function CrossingRow({
       <div className="p-4 space-y-3">
         {/* Direction toggle */}
         <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Richtung</Label>
+          <Label className="text-xs text-muted-foreground">{tr("form.direction")}</Label>
           <div className="grid grid-cols-2 gap-2">
             {(["ENTRY", "EXIT"] as const).map((dir) => (
               <button
@@ -479,20 +478,18 @@ function CrossingRow({
                 {dir === "ENTRY"
                   ? <ArrowDownLeft className="w-3.5 h-3.5 flex-shrink-0" />
                   : <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />}
-                {dir === "ENTRY" ? "Einreise" : "Ausreise"}
+                {dir === "ENTRY" ? tr("form.entry") : tr("form.exit")}
               </button>
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground">
-            {crossing.direction === "ENTRY"
-              ? "Einreise: du betrittst das unten gewählte Land (z.B. Deutschland)"
-              : "Ausreise: du verlässt das unten gewählte Land (z.B. Österreich)"}
+            {crossing.direction === "ENTRY" ? tr("form.entryHint") : tr("form.exitHint")}
           </p>
         </div>
 
         {/* Country picker with search */}
         <div className="space-y-1.5" ref={containerRef}>
-          <Label className="text-xs text-muted-foreground">Land</Label>
+          <Label className="text-xs text-muted-foreground">{tr("form.country")}</Label>
           <div className="relative">
             <button
               type="button"
@@ -515,7 +512,7 @@ function CrossingRow({
               ) : (
                 <>
                   <Globe className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span>Land auswählen…</span>
+                  <span>{tr("form.selectCountry")}</span>
                 </>
               )}
             </button>
@@ -527,7 +524,7 @@ function CrossingRow({
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
                     <Input
                       autoFocus
-                      placeholder="Land suchen…"
+                      placeholder={tr("form.searchCountry")}
                       value={countryQuery}
                       onChange={(e) => setCountryQuery(e.target.value)}
                       className="h-8 pl-8 text-sm"
@@ -537,7 +534,7 @@ function CrossingRow({
                 <div className="max-h-52 overflow-y-auto">
                   {filteredCountries.length === 0 ? (
                     <p className="px-3 py-3 text-xs text-muted-foreground text-center">
-                      Kein Ergebnis für „{countryQuery}"
+                      {tr("form.noCountryResult")} &bdquo;{countryQuery}&ldquo;
                     </p>
                   ) : (
                     filteredCountries.map((c, i) => (
@@ -573,7 +570,7 @@ function CrossingRow({
         {/* Date + Time split for clarity */}
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Datum</Label>
+            <Label className="text-xs text-muted-foreground">{tr("form.date")}</Label>
             <Input
               type="date"
               className="h-9 text-sm"
@@ -582,7 +579,7 @@ function CrossingRow({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Uhrzeit</Label>
+            <Label className="text-xs text-muted-foreground">{tr("form.time")}</Label>
             <Input
               type="time"
               className="h-9 text-sm"
@@ -675,6 +672,7 @@ function Section({
 
 export default function TripForm() {
   const router = useRouter();
+  const { tr } = useLocale();
   const [isPending, startTransition] = useTransition();
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -737,15 +735,15 @@ export default function TripForm() {
     startTransition(async () => {
       const result = await createTrip({ ...data, segments, border_crossings: crossings });
       if (result.success) {
-        toast.success("Reise gespeichert", {
-          description: `Entwurf für „${result.data.destination}" angelegt.`,
+        toast.success(tr("form.tripSaved"), {
+          description: tr("form.draftCreated").replace("{dest}", result.data.destination),
         });
         router.push(`/trips/${result.data.id}`);
       } else {
-        toast.error("Fehler beim Speichern", { description: result.error });
+        toast.error(tr("form.saveError"), { description: result.error });
         if (result.fieldErrors) {
           Object.entries(result.fieldErrors).forEach(([field, errs]) => {
-            setError(field as keyof TripFormValues, { message: errs[0] ?? "Ungültiger Wert" });
+            setError(field as keyof TripFormValues, { message: errs[0] ?? tr("form.invalidValue") });
           });
         }
       }
@@ -792,11 +790,11 @@ export default function TripForm() {
         {/* Reisezweck — REQUIRED */}
         <div className="space-y-1.5">
           <Label htmlFor="purpose">
-            Reisezweck <span className="text-destructive">*</span>
+            {tr("form.purposeLabel")} <span className="text-destructive">*</span>
           </Label>
           <Input
             id="purpose"
-            placeholder="z.B. Kundentermin, Messe München, Schulung"
+            placeholder={tr("form.purposePlaceholder")}
             className="h-10"
             {...register("purpose")}
           />
@@ -807,7 +805,7 @@ export default function TripForm() {
 
         {/* Zielort */}
         <div className="space-y-1.5">
-          <Label htmlFor="destination">Zielort</Label>
+          <Label htmlFor="destination">{tr("form.destinationLabel")}</Label>
           <PlaceAutocomplete
             id="destination"
             value={watch("destination")}
@@ -830,14 +828,14 @@ export default function TripForm() {
                 {internationalHint.countryCode.replace(/./g, (c) => String.fromCodePoint(c.charCodeAt(0) + 127397))}
               </span>
               <span className="flex-1">
-                <strong>Auslandsreise erkannt</strong> — {internationalHint.country}.
-                Grenzübertritt unter „Grenzübertritte" erfassen für korrekte Taggeld-Berechnung.
+                <strong>{tr("form.internationalDetected")}</strong> — {internationalHint.country}.{" "}
+                {tr("form.internationalHint")}
               </span>
             </div>
           )}
           {!internationalHint && (
             <p className="text-xs text-muted-foreground">
-              Exakter Name wichtig für die 5/15-Tage-Regel
+              {tr("form.destinationHint")}
             </p>
           )}
         </div>
@@ -845,7 +843,7 @@ export default function TripForm() {
         {/* Abreise / Rückkehr */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="start_time">Abreise</Label>
+            <Label htmlFor="start_time">{tr("form.departureLabel")}</Label>
             <Input
               id="start_time"
               type="datetime-local"
@@ -857,7 +855,7 @@ export default function TripForm() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="end_time">Rückkehr</Label>
+            <Label htmlFor="end_time">{tr("form.returnLabel")}</Label>
             <Input
               id="end_time"
               type="datetime-local"
@@ -871,9 +869,9 @@ export default function TripForm() {
         </div>
 
         {/* Reiseabschnitte */}
-        <Section title="Reiseabschnitte" badge={segments.length}>
+        <Section title={tr("form.segmentsTitle")} badge={segments.length}>
           <p className="text-xs text-muted-foreground">
-            Einzelne Fahrt-, Flug- oder Zugabschnitte sowie Arbeitszeiten am Zielort erfassen.
+            {tr("form.segmentsHint")}
           </p>
           <div className="space-y-2">
             {segments.map((seg) => (
@@ -887,23 +885,23 @@ export default function TripForm() {
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => addSegment("TRAVEL")}>
-              <Plus className="w-3.5 h-3.5 mr-1" /> Fahrtabschnitt
+              <Plus className="w-3.5 h-3.5 mr-1" /> {tr("form.addTravelSegment")}
             </Button>
             <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => addSegment("WORK")}>
-              <Briefcase className="w-3.5 h-3.5 mr-1" /> Arbeitszeit
+              <Briefcase className="w-3.5 h-3.5 mr-1" /> {tr("form.addWorkSegment")}
             </Button>
           </div>
         </Section>
 
         {/* Grenzübertritte */}
-        <Section title="Grenzübertritte (Ausland)" badge={crossings.length}>
+        <Section title={tr("form.borderCrossingsTitle")} badge={crossings.length}>
           {/* Explanation callout */}
           <div className="flex items-start gap-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-800/40 rounded-lg px-3 py-2.5">
             <Globe className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div className="text-xs text-amber-800 dark:text-amber-300 space-y-0.5">
-              <p className="font-medium">Warum ist das wichtig?</p>
+              <p className="font-medium">{tr("form.whyImportant")}</p>
               <p className="text-amber-700 dark:text-amber-400">
-                Der genaue Zeitpunkt des Grenzübertritts bestimmt, welches Taggeld gilt — österreichisch (€30/Tag) oder das jeweilige Auslandssatz (BMF-Erlass). Erfasse jeden Übergang Einreise/Ausreise separat.
+                {tr("form.borderCrossingExplanationFull")}
               </p>
             </div>
           </div>
@@ -911,7 +909,7 @@ export default function TripForm() {
           {/* Route visualization */}
           {crossings.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Route</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{tr("form.routeLabel")}</p>
               <RouteViz crossings={crossings} />
             </div>
           )}
@@ -941,8 +939,8 @@ export default function TripForm() {
               className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 text-sm text-primary hover:bg-primary/10 transition-colors"
             >
               <span className="text-base leading-none">{countryFlagEmoji(internationalHint.countryCode)}</span>
-              <span className="font-medium">Auto-fill für {internationalHint.country}</span>
-              <span className="text-xs text-primary/70 ml-auto">AT → {internationalHint.countryCode} vorausfüllen</span>
+              <span className="font-medium">{tr("form.autofillLabel")} {internationalHint.country}</span>
+              <span className="text-xs text-primary/70 ml-auto">AT → {internationalHint.countryCode} {tr("form.autofillHint")}</span>
             </button>
           )}
 
@@ -958,14 +956,14 @@ export default function TripForm() {
             ))}
           </div>
           <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={addCrossing}>
-            <Plus className="w-3.5 h-3.5 mr-1" /> Grenzübertritt hinzufügen
+            <Plus className="w-3.5 h-3.5 mr-1" /> {tr("form.addBorderCrossing")}
           </Button>
         </Section>
 
         {/* Kilometergeld */}
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <Label htmlFor="distance_km">Gefahrene Kilometer</Label>
+            <Label htmlFor="distance_km">{tr("form.distanceLabel")}</Label>
             <div className="relative">
               <Input
                 id="distance_km"
@@ -982,15 +980,15 @@ export default function TripForm() {
               <p className="text-xs text-destructive">{errors.distance_km.message}</p>
             )}
             <p className="text-xs text-muted-foreground">
-              Hin- und Rückfahrt (§26 Z 4b EStG · €0,50/km)
+              {tr("form.distanceHint")}
             </p>
           </div>
 
           {/* Passenger */}
           <div className="space-y-1.5">
             <Label htmlFor="passenger_count">
-              Beifahrer im PKW{" "}
-              <span className="text-muted-foreground font-normal text-xs">(+€0,05/km pro Person)</span>
+              {tr("form.passengerLabel")}{" "}
+              <span className="text-muted-foreground font-normal text-xs">{tr("form.passengerSuffix")}</span>
             </Label>
             <Select
               defaultValue="0"
@@ -1000,16 +998,16 @@ export default function TripForm() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">Kein Beifahrer</SelectItem>
-                <SelectItem value="1">1 Beifahrer (€0,55/km)</SelectItem>
-                <SelectItem value="2">2 Beifahrer (€0,60/km)</SelectItem>
-                <SelectItem value="3">3 Beifahrer (€0,65/km)</SelectItem>
-                <SelectItem value="4">4 Beifahrer (€0,70/km)</SelectItem>
+                <SelectItem value="0">{tr("form.noPassenger")}</SelectItem>
+                <SelectItem value="1">{tr("form.passenger1")}</SelectItem>
+                <SelectItem value="2">{tr("form.passenger2")}</SelectItem>
+                <SelectItem value="3">{tr("form.passenger3")}</SelectItem>
+                <SelectItem value="4">{tr("form.passenger4")}</SelectItem>
               </SelectContent>
             </Select>
             {passengerCount > 0 && (
               <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200/50 rounded-md px-2 py-1.5">
-                Beifahrerzuschlag: +{passengerCount} × €0,05 = €{(passengerCount * 0.05).toFixed(2)}/km zusätzlich
+                {tr("form.passengerSurcharge")} +{passengerCount} {tr("form.passengerSurchargeUnit").replace("{amt}", (passengerCount * 0.05).toFixed(2))}
               </p>
             )}
           </div>
@@ -1017,7 +1015,7 @@ export default function TripForm() {
 
         {/* Mahlzeiten */}
         <div className="space-y-1.5">
-          <Label>Inkludierte / bezahlte Mahlzeiten</Label>
+          <Label>{tr("form.mealsIncluded")}</Label>
           <Select
             defaultValue="0"
             onValueChange={(v) =>
@@ -1028,25 +1026,25 @@ export default function TripForm() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Keine</SelectItem>
-              <SelectItem value="1">1 Mahlzeit (z.B. Frühstück im Hotel)</SelectItem>
-              <SelectItem value="2">2 oder mehr Mahlzeiten (z.B. Vollpension)</SelectItem>
+              <SelectItem value="0">{tr("form.meals0")}</SelectItem>
+              <SelectItem value="1">{tr("form.meals1")}</SelectItem>
+              <SelectItem value="2">{tr("form.meals2")}</SelectItem>
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Inkludierte Mahlzeiten kürzen das Taggeld (§26 Z 4 EStG)
+            {tr("form.mealsHint")}
           </p>
         </div>
 
         {/* Notizen */}
         <div className="space-y-1.5">
           <Label htmlFor="notes">
-            Notizen{" "}
-            <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            {tr("form.notesLabel")}{" "}
+            <span className="text-muted-foreground font-normal text-xs">{tr("common.optional")}</span>
           </Label>
           <Textarea
             id="notes"
-            placeholder="Kunden, Projekte, sonstige Anmerkungen…"
+            placeholder={tr("form.notesPlaceholder")}
             className="resize-none"
             rows={2}
             {...register("notes")}
@@ -1056,10 +1054,10 @@ export default function TripForm() {
         <div className="flex gap-3 pt-1">
           <Button type="submit" disabled={isPending} className="flex-1 h-10 font-medium">
             {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Als Entwurf speichern
+            {tr("form.saveDraft")}
           </Button>
           <Button type="button" variant="outline" onClick={() => router.back()} disabled={isPending} className="h-10">
-            Abbrechen
+            {tr("form.cancel")}
           </Button>
         </div>
       </form>
@@ -1068,11 +1066,11 @@ export default function TripForm() {
       <div className="lg:col-span-2">
         <div className="lg:sticky lg:top-6 space-y-3">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-            Echtzeit-Vorschau
+            {tr("form.realtimePreview")}
           </p>
           <PreviewPanel preview={preview} loading={previewLoading} />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Vorläufige Berechnung. Endgültige Beträge nach HR-Genehmigung.
+            {tr("form.previewDisclaimer")}
           </p>
         </div>
       </div>

@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/contexts/LocaleContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ function ReceiptCard({
   tripId: string;
   onDeleted: (id: string) => void;
 }) {
+  const { tr } = useLocale();
   const [isDeleting, startDelete] = useTransition();
   const [isFetchingUrl, startFetch] = useTransition();
 
@@ -94,20 +96,20 @@ function ReceiptCard({
       if (result.success) {
         window.open(result.data.url, "_blank", "noopener");
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("receipt.error"), { description: result.error });
       }
     });
   }
 
   function handleDelete() {
-    if (!confirm("Beleg wirklich löschen?")) return;
+    if (!confirm(tr("receipt.confirmDelete"))) return;
     startDelete(async () => {
       const result = await deleteReceipt(receipt.id, tripId);
       if (result.success) {
-        toast.success("Beleg gelöscht");
+        toast.success(tr("receipt.deleted"));
         onDeleted(receipt.id);
       } else {
-        toast.error("Fehler", { description: result.error });
+        toast.error(tr("receipt.error"), { description: result.error });
       }
     });
   }
@@ -146,7 +148,7 @@ function ReceiptCard({
             receipt.ocr_extracted_amount !== receipt.expense_lines.amount && (
               <p className="text-xs text-amber-600 flex items-center gap-1 mt-0.5">
                 <AlertTriangle className="w-3 h-3" />
-                OCR: {receipt.ocr_extracted_amount} — manuell korrigiert
+                OCR: {receipt.ocr_extracted_amount} — {tr("receipt.manuallyAdjusted")}
               </p>
             )}
         </div>
@@ -158,7 +160,7 @@ function ReceiptCard({
           onClick={handleView}
           disabled={isFetchingUrl}
           className="h-8 w-8 p-0"
-          title="Beleg anzeigen"
+          title={tr("receipt.viewLabel")}
         >
           {isFetchingUrl ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -172,7 +174,7 @@ function ReceiptCard({
           onClick={handleDelete}
           disabled={isDeleting}
           className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-          title="Beleg löschen"
+          title={tr("receipt.deleteLabel")}
         >
           {isDeleting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -194,6 +196,7 @@ export default function ReceiptUploader({
   disabled = false,
 }: ReceiptUploaderProps) {
   const router = useRouter();
+  const { tr } = useLocale();
   const [step, setStep] = useState<UploadStep>({ type: "idle" });
   const [receipts, setReceipts] = useState<SavedReceipt[]>(initialReceipts);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -213,13 +216,13 @@ export default function ReceiptUploader({
       // 1. Validate
       const allowed = ["image/jpeg", "image/png", "image/webp", "image/tiff", "image/bmp"];
       if (!allowed.includes(file.type)) {
-        toast.error("Nicht unterstütztes Format", {
-          description: "Bitte JPEG, PNG, WEBP oder TIFF verwenden.",
+        toast.error(tr("receipt.unsupportedFormat"), {
+          description: tr("receipt.unsupportedHint"),
         });
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        toast.error("Datei zu groß (max. 10 MB)");
+        toast.error(tr("receipt.fileTooLarge"));
         return;
       }
 
@@ -237,7 +240,7 @@ export default function ReceiptUploader({
       if (uploadError) {
         setStep({
           type: "error",
-          message: `Upload fehlgeschlagen: ${uploadError.message}`,
+          message: `${tr("receipt.uploadFailed")} ${uploadError.message}`,
         });
         return;
       }
@@ -278,7 +281,7 @@ export default function ReceiptUploader({
         ocr,
       });
     },
-    [tripId, userId]
+    [tripId, userId, tr]
   );
 
   // ── Drop zone handlers ─────────────────────────────────────────────────────
@@ -310,7 +313,7 @@ export default function ReceiptUploader({
 
     const amount = parseFloat(confirmedAmount.replace(",", "."));
     if (isNaN(amount) || amount <= 0) {
-      toast.error("Bitte gültigen Betrag eingeben");
+      toast.error(tr("receipt.invalidAmount"));
       return;
     }
 
@@ -329,18 +332,16 @@ export default function ReceiptUploader({
       });
 
       if (result.success) {
-        toast.success("Beleg gespeichert", {
+        toast.success(tr("receipt.saved"), {
           description: `${new Intl.NumberFormat("de-AT", {
             style: "currency",
             currency: "EUR",
           }).format(amount)} erfasst`,
         });
-        // We can't reconstruct the full ReceiptWithExpenseLine shape here,
-        // so refresh will show it. In a real app you'd return it from the action.
         setStep({ type: "idle" });
         router.refresh();
       } else {
-        toast.error("Fehler beim Speichern", { description: result.error });
+        toast.error(tr("receipt.saveErrorMsg"), { description: result.error });
         setStep({
           type: "error",
           message: result.error,
@@ -375,7 +376,7 @@ export default function ReceiptUploader({
         <div
           role="button"
           tabIndex={0}
-          aria-label="Beleg hochladen"
+          aria-label={tr("receipt.uploadLabel")}
           className={cn(
             "border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors",
             isDragOver
@@ -395,13 +396,13 @@ export default function ReceiptUploader({
         >
           <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">
-            Beleg hier ablegen oder klicken
+            {tr("receipt.dropZoneLabel")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            JPEG, PNG, WEBP, TIFF · max. 10 MB
+            {tr("receipt.dropZoneHint")}
           </p>
           <p className="text-xs text-primary mt-2 font-medium">
-            OCR erkennt Betrag und Datum automatisch
+            {tr("receipt.ocrAutoDetect")}
           </p>
           <input
             ref={fileInputRef}
@@ -419,9 +420,9 @@ export default function ReceiptUploader({
           <CardContent className="flex items-center gap-3 py-5">
             <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Wird hochgeladen…</p>
+              <p className="text-sm font-medium">{tr("receipt.uploading")}</p>
               <p className="text-xs text-muted-foreground">
-                Bitte warten
+                {tr("receipt.pleaseWait")}
               </p>
             </div>
           </CardContent>
@@ -434,9 +435,9 @@ export default function ReceiptUploader({
           <CardContent className="flex items-center gap-3 py-5">
             <Scan className="w-5 h-5 text-primary animate-pulse flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">OCR läuft…</p>
+              <p className="text-sm font-medium">{tr("receipt.ocrRunning")}</p>
               <p className="text-xs text-muted-foreground">
-                Texterkennung auf {step.fileName}
+                {tr("receipt.ocrRecognizing")} {step.fileName}
               </p>
             </div>
           </CardContent>
@@ -449,13 +450,13 @@ export default function ReceiptUploader({
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-              <p className="text-sm font-semibold">OCR abgeschlossen — Bitte prüfen</p>
+              <p className="text-sm font-semibold">{tr("receipt.ocrDone")}</p>
             </div>
 
             {step.ocr.rawText && (
               <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer hover:text-foreground">
-                  Erkannter Rohtext anzeigen
+                  {tr("receipt.showRawText")}
                 </summary>
                 <pre className="mt-2 p-3 bg-muted rounded text-xs whitespace-pre-wrap max-h-32 overflow-y-auto font-mono">
                   {step.ocr.rawText}
@@ -466,13 +467,13 @@ export default function ReceiptUploader({
             {!step.ocr.amount && (
               <div className="flex items-center gap-2 text-amber-700 bg-amber-50 rounded-md p-2.5 text-xs">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                Kein Betrag erkannt — bitte manuell eingeben
+                {tr("receipt.noAmountDetected")}
               </div>
             )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="receipt-amount">Betrag (€)</Label>
+                <Label htmlFor="receipt-amount">{tr("receipt.amountLabel")}</Label>
                 <Input
                   id="receipt-amount"
                   type="number"
@@ -487,7 +488,7 @@ export default function ReceiptUploader({
                 />
                 {step.ocr.amountCandidates.length > 1 && (
                   <p className="text-xs text-muted-foreground">
-                    Weitere:{" "}
+                    {tr("receipt.moreOptions")}{" "}
                     {step.ocr.amountCandidates
                       .slice(1, 4)
                       .map((a) => `€${a}`)
@@ -497,7 +498,7 @@ export default function ReceiptUploader({
               </div>
 
               <div className="space-y-1.5">
-                <Label>MwSt.-Satz</Label>
+                <Label>{tr("receipt.vatLabel")}</Label>
                 <Select
                   value={vatRate}
                   onValueChange={(v) =>
@@ -508,10 +509,10 @@ export default function ReceiptUploader({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="20">20% (Standard)</SelectItem>
-                    <SelectItem value="10">10% (Lebensmittel)</SelectItem>
-                    <SelectItem value="13">13% (Kultur)</SelectItem>
-                    <SelectItem value="0">0% (befreit)</SelectItem>
+                    <SelectItem value="20">{tr("receipt.vat20")}</SelectItem>
+                    <SelectItem value="10">{tr("receipt.vat10")}</SelectItem>
+                    <SelectItem value="13">{tr("receipt.vat13")}</SelectItem>
+                    <SelectItem value="0">{tr("receipt.vat0")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -519,14 +520,14 @@ export default function ReceiptUploader({
 
             <div className="space-y-1.5">
               <Label htmlFor="receipt-desc">
-                Beschreibung{" "}
+                {tr("receipt.descLabel")}{" "}
                 <span className="text-muted-foreground font-normal">
-                  (optional)
+                  {tr("common.optional")}
                 </span>
               </Label>
               <Input
                 id="receipt-desc"
-                placeholder="z.B. Tankquittung, Hotelrechnung…"
+                placeholder={tr("receipt.descPlaceholder")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -541,14 +542,14 @@ export default function ReceiptUploader({
                 {isPending && (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 )}
-                Speichern
+                {tr("receipt.save")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => setStep({ type: "idle" })}
                 disabled={isPending}
               >
-                Abbrechen
+                {tr("common.cancel")}
               </Button>
             </div>
           </CardContent>
@@ -560,7 +561,7 @@ export default function ReceiptUploader({
         <Card className="border-primary/20">
           <CardContent className="flex items-center gap-3 py-5">
             <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
-            <p className="text-sm font-medium">Wird gespeichert…</p>
+            <p className="text-sm font-medium">{tr("receipt.saving")}</p>
           </CardContent>
         </Card>
       )}
@@ -578,7 +579,7 @@ export default function ReceiptUploader({
               size="sm"
               onClick={() => setStep({ type: "idle" })}
             >
-              Erneut versuchen
+              {tr("common.retry")}
             </Button>
           </CardContent>
         </Card>
@@ -586,7 +587,7 @@ export default function ReceiptUploader({
 
       {disabled && receipts.length === 0 && (
         <p className="text-xs text-muted-foreground text-center py-4">
-          Belege können nach Genehmigung nicht mehr verändert werden
+          {tr("receipt.frozenNote")}
         </p>
       )}
     </div>

@@ -20,6 +20,8 @@ import {
   FileText,
 } from "lucide-react";
 import { MILEAGE_ANNUAL_CAP_KM } from "@/lib/AustrianTaxCalculator";
+import { getLocale } from "@/lib/locale-server";
+import { t } from "@/lib/translations";
 
 function formatCurrency(amount: number | null) {
   if (amount === null) return "—";
@@ -44,51 +46,53 @@ function formatDuration(start: string, end: string) {
   return `${h}h ${m}m`;
 }
 
-const kpiConfig = [
-  {
-    key: "taxFree",
-    icon: Euro,
-    label: "Steuerfrei genehmigt",
-    sublabel: "Taggeld + Kilometergeld",
-    color: "text-emerald-600",
-    bg: "bg-emerald-50",
-    border: "border-l-emerald-500",
-  },
-  {
-    key: "taxable",
-    icon: TrendingUp,
-    label: "KV-Überschuss",
-    sublabel: "Steuerpflichtiger Anteil",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
-    border: "border-l-amber-500",
-  },
-  {
-    key: "pending",
-    icon: Clock,
-    label: "Ausstehend",
-    sublabel: "Reisen zur Genehmigung",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
-    border: "border-l-blue-500",
-  },
-  {
-    key: "total",
-    icon: Car,
-    label: "Gesamt Reisen",
-    sublabel: "inkl. Entwürfe",
-    color: "text-primary",
-    bg: "bg-primary/5",
-    border: "border-l-primary",
-  },
-];
-
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const locale = await getLocale();
+
+  const kpiConfig = [
+    {
+      key: "taxFree",
+      icon: Euro,
+      label: t(locale, "kpi.taxFree"),
+      sublabel: t(locale, "kpi.taxFreeHint"),
+      color: "text-emerald-600",
+      bg: "bg-emerald-50",
+      border: "border-l-emerald-500",
+    },
+    {
+      key: "taxable",
+      icon: TrendingUp,
+      label: t(locale, "kpi.taxable"),
+      sublabel: t(locale, "kpi.taxableHint"),
+      color: "text-amber-600",
+      bg: "bg-amber-50",
+      border: "border-l-amber-500",
+    },
+    {
+      key: "pending",
+      icon: Clock,
+      label: t(locale, "kpi.pending"),
+      sublabel: t(locale, "kpi.pendingHint"),
+      color: "text-blue-600",
+      bg: "bg-blue-50",
+      border: "border-l-blue-500",
+    },
+    {
+      key: "total",
+      icon: Car,
+      label: t(locale, "kpi.total"),
+      sublabel: t(locale, "kpi.totalHint"),
+      color: "text-primary",
+      bg: "bg-primary/5",
+      border: "border-l-primary",
+    },
+  ];
 
   const [{ data: profile }, tripsResult] = await Promise.all([
     supabase
@@ -121,11 +125,11 @@ export default async function DashboardPage() {
     taxable: { value: formatCurrency(totalTaxable) },
     pending: {
       value: String(pendingTrips.length),
-      sub: `${approvedTrips.length} genehmigt`,
+      sub: `${approvedTrips.length} ${t(locale, "kpi.approved")}`,
     },
     total: {
       value: String(trips.length),
-      sub: `${approvedTrips.length} genehmigt`,
+      sub: `${approvedTrips.length} ${t(locale, "kpi.approved")}`,
     },
   };
 
@@ -149,16 +153,18 @@ export default async function DashboardPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-            {firstName ? `Guten Tag, ${firstName}` : "Dashboard"}
+            {firstName
+              ? t(locale, "dashboard.greetingFull").replace("{name}", firstName)
+              : "Dashboard"}
           </h1>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            Reisekostenübersicht {new Date().getFullYear()}
+            {t(locale, "dashboard.subtitleYear").replace("{year}", String(new Date().getFullYear()))}
           </p>
         </div>
         <LinkButton href="/trips/new" className="shrink-0">
           <PlusCircle className="w-4 h-4 mr-1.5" />
-          <span className="hidden sm:inline">Neue Reise</span>
-          <span className="sm:hidden">Neu</span>
+          <span className="hidden sm:inline">{t(locale, "dashboard.newTrip")}</span>
+          <span className="sm:hidden">{t(locale, "dashboard.newTripShort")}</span>
         </LinkButton>
       </div>
 
@@ -166,11 +172,11 @@ export default async function DashboardPage() {
       <div className="flex gap-2 sm:hidden">
         <LinkButton href="/trips/new" className="flex-1 gap-1.5 h-11">
           <PlusCircle className="w-4 h-4" />
-          Neue Reise
+          {t(locale, "dashboard.newTrip")}
         </LinkButton>
         <LinkButton href="/trips" variant="outline" className="flex-1 gap-1.5 h-11">
           <FileText className="w-4 h-4" />
-          Alle Reisen
+          {t(locale, "dashboard.allTrips")}
         </LinkButton>
       </div>
 
@@ -212,7 +218,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Car className="w-4 h-4 text-primary" />
-              Kilometergeld-Jahresgrenze
+              {t(locale, "dashboard.mileageCap")}
               <span className="text-xs font-normal text-muted-foreground hidden sm:inline">
                 (§26 Z 4b EStG)
               </span>
@@ -235,8 +241,7 @@ export default async function DashboardPage() {
           />
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>
-              {(MILEAGE_ANNUAL_CAP_KM - ytdMileage).toLocaleString("de-AT")} km
-              verbleibend à €0,50
+              {(MILEAGE_ANNUAL_CAP_KM - ytdMileage).toLocaleString("de-AT")} {t(locale, "dashboard.remaining")}
             </span>
             <span
               className={cn(
@@ -244,12 +249,12 @@ export default async function DashboardPage() {
                 mileagePct >= 90 ? "text-destructive" : ""
               )}
             >
-              {mileagePct.toFixed(1)}% ausgeschöpft
+              {mileagePct.toFixed(1)}% {t(locale, "dashboard.exhausted")}
             </span>
           </div>
           {mileagePct >= 100 && (
             <p className="text-xs text-destructive font-medium bg-destructive/5 border border-destructive/15 px-3 py-2 rounded-md">
-              Jahresgrenze erreicht — weitere Kilometer werden mit €0 erstattet
+              {t(locale, "dashboard.limitReached")}
             </p>
           )}
         </CardContent>
@@ -258,7 +263,7 @@ export default async function DashboardPage() {
       {/* ── Recent trips ─────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Letzte Reisen</h2>
+          <h2 className="text-sm font-semibold text-foreground">{t(locale, "dashboard.recentTrips")}</h2>
           <Link
             href="/trips"
             className={cn(
@@ -266,7 +271,7 @@ export default async function DashboardPage() {
               "gap-1 text-xs h-7 px-2"
             )}
           >
-            Alle anzeigen
+            {t(locale, "dashboard.showAll")}
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -279,15 +284,15 @@ export default async function DashboardPage() {
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">
-                  Noch keine Reisen erfasst
+                  {t(locale, "dashboard.noTrips")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Starten Sie mit Ihrer ersten Dienstreise
+                  {t(locale, "dashboard.noTripsHint")}
                 </p>
               </div>
               <LinkButton href="/trips/new" size="sm">
                 <PlusCircle className="w-4 h-4 mr-1.5" />
-                Erste Reise anlegen
+                {t(locale, "dashboard.startFirstTrip")}
               </LinkButton>
             </CardContent>
           </Card>
@@ -346,7 +351,7 @@ export default async function DashboardPage() {
                       <p className="font-bold text-sm text-primary tabular-nums">
                         {formatCurrency(trip.calculated_total_tax_free)}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">steuerfrei</p>
+                      <p className="text-[10px] text-muted-foreground">{t(locale, "dashboard.taxFreeLabel")}</p>
                     </div>
                   </CardContent>
                 </Card>

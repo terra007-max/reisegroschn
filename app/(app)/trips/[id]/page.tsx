@@ -23,6 +23,8 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { getLocale } from "@/lib/locale-server";
+import { t } from "@/lib/translations";
 
 export default async function TripDetailPage({
   params,
@@ -36,9 +38,10 @@ export default async function TripDetailPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [tripResult, receiptsResult] = await Promise.all([
+  const [tripResult, receiptsResult, locale] = await Promise.all([
     getTripById(id),
     getReceiptsForTrip(id),
+    getLocale(),
   ]);
 
   if (!tripResult.success) notFound();
@@ -68,7 +71,7 @@ export default async function TripDetailPage({
   const durationH = Math.floor(durationMs / 3_600_000);
   const durationM = Math.floor((durationMs % 3_600_000) / 60_000);
 
-  const mealsLabel = ["Keine", "1 Mahlzeit bezahlt", "2+ Mahlzeiten bezahlt"][trip.meals_provided];
+  const mealsLabel = [t(locale, "tripDetail.noMeals"), t(locale, "tripDetail.oneMeal"), t(locale, "tripDetail.twoMeals")][trip.meals_provided];
   const isImmutable = trip.status === "APPROVED";
 
   return (
@@ -79,7 +82,7 @@ export default async function TripDetailPage({
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 inline-flex")}
       >
         <ArrowLeft className="w-4 h-4 mr-1" />
-        Zurück
+        {t(locale, "tripDetail.back")}
       </Link>
 
       {/* Hero header */}
@@ -100,7 +103,7 @@ export default async function TripDetailPage({
           {trip.is_secondary_workplace && (
             <div className="flex items-center gap-1.5 text-amber-700 text-sm mt-1.5">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              <span>Tätigkeitsmittelpunkt — Taggeld nicht erstattungsfähig</span>
+              <span>{t(locale, "tripDetail.secondaryWarning")}</span>
             </div>
           )}
         </div>
@@ -113,9 +116,9 @@ export default async function TripDetailPage({
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-sm font-medium text-emerald-800">
-              Genehmigt am {formatDateLong(trip.approved_at)}
+              {t(locale, "tripDetail.approvedOn")} {formatDateLong(trip.approved_at)}
             </p>
-            <p className="text-xs text-emerald-600/80">Unveränderbar gemäß BAO §131</p>
+            <p className="text-xs text-emerald-600/80">{t(locale, "tripDetail.immutable")}</p>
           </div>
         </div>
       )}
@@ -124,7 +127,7 @@ export default async function TripDetailPage({
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
           <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-red-800">Abgelehnt</p>
+            <p className="text-sm font-medium text-red-800">{t(locale, "tripDetail.rejected")}</p>
             <p className="text-sm text-red-600 mt-0.5">{trip.rejection_reason}</p>
           </div>
         </div>
@@ -136,21 +139,21 @@ export default async function TripDetailPage({
         <Card className="card-shadow">
           <CardContent className="pt-4 pb-4 px-4 space-y-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Reisedaten
+              {t(locale, "tripDetail.travelData")}
             </p>
 
-            <DetailRow icon={Clock} label="Abreise" value={formatDT(trip.start_time)} />
-            <DetailRow icon={Clock} label="Rückkehr" value={formatDT(trip.end_time)} />
+            <DetailRow icon={Clock} label={t(locale, "tripDetail.departure")} value={formatDT(trip.start_time)} />
+            <DetailRow icon={Clock} label={t(locale, "tripDetail.return")} value={formatDT(trip.end_time)} />
             <Separator />
             <DetailRow
               icon={MapPin}
-              label="Dauer"
+              label={t(locale, "tripDetail.duration")}
               value={`${durationH}h ${durationM}m`}
             />
             {trip.distance_km > 0 && (
-              <DetailRow icon={Car} label="Kilometer" value={`${trip.distance_km} km`} />
+              <DetailRow icon={Car} label={t(locale, "tripDetail.kilometers")} value={`${trip.distance_km} km`} />
             )}
-            <DetailRow icon={UtensilsCrossed} label="Mahlzeiten" value={mealsLabel} />
+            <DetailRow icon={UtensilsCrossed} label={t(locale, "tripDetail.meals")} value={mealsLabel} />
 
             {trip.notes && (
               <>
@@ -165,25 +168,25 @@ export default async function TripDetailPage({
         <Card className="card-shadow">
           <CardContent className="pt-4 pb-4 px-4 space-y-3">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Berechnung §26 EStG
+              {t(locale, "tripDetail.calculation")}
             </p>
 
             {trip.is_secondary_workplace ? (
               <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200/60 rounded-lg p-3 text-xs">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>Tätigkeitsmittelpunkt — Taggeld €0 (5/15-Tage-Regel)</span>
+                <span>{t(locale, "tripDetail.secondaryWorkplace")}</span>
               </div>
             ) : (
               <>
-                <CalcRow label="Taggeld Brutto" value={formatCurrency(trip.calculated_taggeld_gross)} />
-                <CalcRow label="Taggeld Netto" value={formatCurrency(trip.calculated_taggeld_net)} />
+                <CalcRow label={t(locale, "tripDetail.taggeldGross")} value={formatCurrency(trip.calculated_taggeld_gross)} />
+                <CalcRow label={t(locale, "tripDetail.taggeldNet")} value={formatCurrency(trip.calculated_taggeld_net)} />
                 <CalcRow
-                  label={`Kilometergeld (${trip.distance_km} km)`}
+                  label={`${t(locale, "tripDetail.mileage")} (${trip.distance_km} km)`}
                   value={formatCurrency(trip.calculated_mileage_payout)}
                 />
                 {(trip.calculated_total_taxable ?? 0) > 0 && (
                   <CalcRow
-                    label="KV-Überschuss (steuerpfl.)"
+                    label={t(locale, "tripDetail.taxable")}
                     value={formatCurrency(trip.calculated_total_taxable)}
                     muted
                   />
@@ -199,7 +202,7 @@ export default async function TripDetailPage({
                 <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Euro className="w-3.5 h-3.5 text-primary" />
                 </div>
-                <span className="font-semibold text-sm">Gesamt steuerfrei</span>
+                <span className="font-semibold text-sm">{t(locale, "tripDetail.totalTaxFree")}</span>
               </div>
               <span className="text-lg font-bold text-primary tabular-nums">
                 {formatCurrency(trip.calculated_total_tax_free)}
@@ -208,7 +211,7 @@ export default async function TripDetailPage({
 
             <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/50 rounded-lg px-3 py-2 text-xs text-emerald-700">
               <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
-              §26 Z 4 EStG — steuer- und sozialversicherungsfrei
+              {t(locale, "tripDetail.taxFreeBadge")}
             </div>
           </CardContent>
         </Card>
@@ -220,7 +223,7 @@ export default async function TripDetailPage({
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-muted-foreground" />
             <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Belege ({receipts.length})
+              {t(locale, "tripDetail.receipts")} ({receipts.length})
             </p>
           </div>
           <ReceiptUploader

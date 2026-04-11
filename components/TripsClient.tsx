@@ -237,7 +237,7 @@ export default function TripsClient({ trips }: TripsClientProps) {
                             <StatusBadge status={trip.status} />
                             {trip.is_secondary_workplace && (
                               <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-medium">
-                                Tätigkeitsmittelpunkt
+                                {tr("trips.secondaryWorkplace")}
                               </span>
                             )}
                           </div>
